@@ -26,9 +26,24 @@ export default function HomeLatestGrid({ title = "Latest" }: { title?: string })
       <div className="grid gap-6 md:grid-cols-4">
         {loading
           ? Array.from({ length: 8 }).map((_, i) => <ArticleCardSkeleton key={i} compact />)
-          : items.map((a: any) => (
-              <ArticleCard key={a.id} article={{ ...a, author: a.author || undefined, category: a.category || undefined }} compact />
-            ))}
+          : items.map((a: any) => {
+              const img = a?.featured_image || a?.image_url || a?.cover_image || a?.image || null
+              if (!img) {
+                console.warn('[HomeLatestGrid] Missing image for item', { id: a?.id, slug: a?.slug, title: a?.title })
+              }
+              return (
+                <ArticleCard
+                  key={a.id}
+                  article={{
+                    ...a,
+                    featured_image: img,
+                    author: a.author || undefined,
+                    category: a.category || undefined,
+                  }}
+                  compact
+                />
+              )
+            })}
       </div>
     </section>
   )

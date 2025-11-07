@@ -10,7 +10,12 @@ export default function TrendingRail({ items }: { items: Array<{ id: string; slu
         <a href="/articles?sort=views_desc" className="text-sm text-blue-600 hover:underline">View all trending</a>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-2">
-        {items.map((a) => (
+        {items.map((a) => {
+          const img = (a as any).featured_image || (a as any).image_url || (a as any).cover_image || (a as any).image || null;
+          if (!img) {
+            console.warn('[TrendingRail] Missing image for item', { id: (a as any).id, slug: (a as any).slug, title: (a as any).title });
+          }
+          return (
           <div key={a.id} className="min-w-[280px] max-w-[280px] flex-shrink-0">
             <ArticleCard
               compact
@@ -19,7 +24,7 @@ export default function TrendingRail({ items }: { items: Array<{ id: string; slu
                 slug: a.slug,
                 title: a.title,
                 excerpt: '',
-                featured_image: a.featured_image,
+                featured_image: img,
                 published_at: (a as any).published_at ?? null,
                 views_count: a.views_count ?? 0,
                 author: (a as any).author ?? ((a as any).author_display_name ? { display_name: (a as any).author_display_name, avatar_url: (a as any).author_avatar_url } : undefined),
@@ -27,7 +32,8 @@ export default function TrendingRail({ items }: { items: Array<{ id: string; slu
               } as any}
             />
           </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   );

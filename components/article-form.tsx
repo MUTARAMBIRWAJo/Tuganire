@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/lib/supabaseClient"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +38,7 @@ interface ArticleFormProps {
 
 export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: ArticleFormProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
@@ -110,6 +112,12 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
         return
       }
 
+      // Derive featured image if absent
+      const firstMediaImage = (formData.media || []).find((m) => (m as any)?.type === 'image')?.url || null
+      const firstImgMatch = (formData.content || '').match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i)
+      const firstImgInContent = firstImgMatch ? firstImgMatch[1] : null
+      const derivedFeatured = formData.featured_image || firstMediaImage || firstImgInContent || null
+
       const articleData: any = {
         title: formData.title,
         slug: formData.slug || generateSlug(formData.title),
@@ -118,7 +126,7 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
         author_id: userId,
         status: "draft",
         category_id: formData.category_id ? Number(formData.category_id) : null,
-        featured_image: formData.featured_image || null,
+        featured_image: derivedFeatured,
         updated_at: new Date().toISOString(),
       }
 
@@ -132,6 +140,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
 
         if (error) {
           console.error("Auto-save failed (update):", { message: error.message, details: (error as any).details, hint: (error as any).hint })
+        } else {
+          toast({ title: "Draft saved", description: "Your changes have been auto-saved." })
         }
       } else {
         const { error } = await supabases
@@ -142,6 +152,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
 
         if (error) {
           console.error("Auto-save failed (insert):", { message: error.message, details: (error as any).details, hint: (error as any).hint })
+        } else {
+          toast({ title: "Draft saved", description: "Your draft has been auto-saved." })
         }
       }
     } catch (err) {
@@ -183,6 +195,12 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
           : submitStatus
 
       // Prepare article data - don't include media as JSON if it's not in schema
+      // Derive featured image if absent
+      const firstMediaImage2 = (formData.media || []).find((m) => (m as any)?.type === 'image')?.url || null
+      const firstImgMatch2 = (formData.content || '').match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i)
+      const firstImgInContent2 = firstImgMatch2 ? firstImgMatch2[1] : null
+      const derivedFeatured2 = formData.featured_image || firstMediaImage2 || firstImgInContent2 || null
+
       const articleData: any = {
         title: formData.title,
         slug: formData.slug || generateSlug(formData.title),
@@ -191,7 +209,7 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
         author_id: userId,
         status: effectiveStatus,
         category_id: formData.category_id ? Number(formData.category_id) : null,
-        featured_image: formData.featured_image || null,
+        featured_image: derivedFeatured2,
         updated_at: new Date().toISOString(),
       }
 
@@ -247,6 +265,11 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
             // Don't throw - tags are optional
           }
         }
+      }
+
+      // Notify success before navigating
+      if (effectiveStatus === "draft") {
+        toast({ title: "Draft saved", description: "Your draft has been saved successfully." })
       }
 
       router.push(afterSaveHref || "/dashboard/articles")

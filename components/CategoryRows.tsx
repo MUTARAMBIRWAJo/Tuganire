@@ -42,23 +42,35 @@ export default function CategoryRows({ rows, categoryOrder }: { rows: Row[]; cat
                 </Link>
               </div>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                {articles.map((a) => (
-                  <ArticleCard
-                    key={a.id}
-                    compact
-                    article={{
-                      id: a.id as any,
-                      slug: a.slug as any,
-                      title: a.title,
-                      excerpt: a.excerpt || '',
-                      featured_image: a.featured_image,
-                      published_at: a.published_at,
-                      views_count: 0,
-                      author: a.author_display_name ? { display_name: a.author_display_name, avatar_url: a.author_avatar_url } as any : undefined,
-                      category: a.category_slug ? { name: a.category_name || 'Category', slug: a.category_slug } as any : undefined,
-                    } as any}
-                  />
-                ))}
+                {articles.map((a) => {
+                  const img = (a as any).featured_image || (a as any).image_url || (a as any).cover_image || (a as any).image || null
+                  if (!img) {
+                    console.warn('[CategoryRows] Missing image for item', { id: (a as any).id, slug: (a as any).slug, title: (a as any).title })
+                  }
+                  return (
+                    <ArticleCard
+                      key={a.id}
+                      compact
+                      article={{
+                        id: a.id as any,
+                        slug: a.slug as any,
+                        title: a.title,
+                        excerpt: (a as any).excerpt || (a as any).summary || '',
+                        featured_image: img,
+                        published_at: (a as any).published_at ?? (a as any).created_at ?? null,
+                        views_count: (a as any).views_count ?? (a as any).view_count ?? 0,
+                        author: (a as any).author
+                          ? (a as any).author as any
+                          : ((a as any).author_display_name || (a as any).author_name
+                              ? { display_name: (a as any).author_display_name || (a as any).author_name, avatar_url: (a as any).author_avatar_url } as any
+                              : undefined),
+                        category: (a as any).category_slug
+                          ? ({ name: (a as any).category_name || 'Category', slug: (a as any).category_slug } as any)
+                          : undefined,
+                      } as any}
+                    />
+                  )
+                })}
               </div>
             </div>
           );

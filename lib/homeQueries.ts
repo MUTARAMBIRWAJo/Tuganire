@@ -101,12 +101,29 @@ export async function getTrending(limit = 10) {
       id: a.id,
       slug: a.slug,
       title: a.title,
-      excerpt: a.excerpt,
-      featured_image: a.featured_image,
-      published_at: a.published_at,
-      views_count: null,
+      excerpt: a.excerpt ?? '',
+      featured_image: a.featured_image ?? null,
+      published_at: a.published_at ?? null,
+      views_count: null as number | null,
       category_name: Array.isArray(a.category) ? a.category[0]?.name : a.category?.name,
       category_slug: Array.isArray(a.category) ? a.category[0]?.slug : a.category?.slug,
+      author_display_name: null as string | null,
+      author_avatar_url: null as string | null,
+    }));
+  } else {
+    // normalize v_trending rows into unified shape expected by UI
+    data = (data || []).map((t: any) => ({
+      id: t.id ?? t.article_id ?? t.slug ?? Math.random().toString(36).slice(2),
+      slug: t.slug ?? t.article_slug ?? t.slug_text ?? '',
+      title: t.title ?? t.headline ?? '',
+      excerpt: t.excerpt ?? t.summary ?? t.subtitle ?? '',
+      featured_image: t.featured_image || t.image_url || t.cover_image || t.image || null,
+      published_at: t.published_at ?? t.created_at ?? null,
+      views_count: t.views_count ?? t.view_count ?? t.views ?? null,
+      category_name: t.category_name ?? t.category?.name ?? null,
+      category_slug: t.category_slug ?? t.category?.slug ?? null,
+      author_display_name: t.author_display_name ?? t.author?.display_name ?? t.author_name ?? null,
+      author_avatar_url: t.author_avatar_url ?? t.author?.avatar_url ?? null,
     }));
   }
   return data ?? [];
