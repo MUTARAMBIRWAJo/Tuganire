@@ -43,6 +43,7 @@ interface NavLink {
 const roleLinks: Record<string, NavLink[]> = {
   superadmin: [
     { name: "Dashboard", icon: Home, path: "/dashboard/superadmin" },
+    { name: "Profile", icon: User, path: "/dashboard/superadmin/profile" },
     { name: "Manage Users", icon: Users, path: "/dashboard/superadmin/users" },
     { name: "Manage Articles", icon: FileText, path: "/dashboard/superadmin/articles" },
     { name: "Moderation Queue", icon: CheckCircle, path: "/dashboard/superadmin/moderation" },

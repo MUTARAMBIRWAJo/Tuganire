@@ -23,6 +23,8 @@ interface ArticleFormProps {
   forceDraft?: boolean
   // Optional path to navigate to after saving
   afterSaveHref?: string
+  // Preload tag IDs for edited articles
+  initialTagIds?: number[]
   article?: {
     id: string
     title: string
@@ -36,14 +38,20 @@ interface ArticleFormProps {
   }
 }
 
-export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: ArticleFormProps) {
+export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initialTagIds }: ArticleFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([])
   const [tags, setTags] = useState<Array<{ id: number; name: string }>>([])
-  const [selectedTags, setSelectedTags] = useState<number[]>([])
+  const [selectedTags, setSelectedTags] = useState<number[]>(initialTagIds || [])
+
+  type ArticleRow = {
+    id?: string
+    status?: string | null
+    featured_image?: string | null
+  }
 
   const [formData, setFormData] = useState({
     title: article?.title || "",
@@ -73,9 +81,16 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
     fetchData()
   }, [])
 
+  // Keep selectedTags in sync if initialTagIds changes (e.g., on server fetch)
+  useEffect(() => {
+    if (initialTagIds && initialTagIds.length > 0) {
+      setSelectedTags(initialTagIds)
+    }
+  }, [initialTagIds])
+
   // Auto-save draft every 30 seconds
   useEffect(() => {
-    if (!article && formData.title) {
+    if (article && formData.title) {
       const interval = setInterval(() => {
         handleSaveDraft()
       }, 30000)
@@ -91,16 +106,31 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
       .replace(/(^-|-$)/g, "")
   }
 
+  const deriveSlug = (input: string, title: string, fallback?: string) => {
+    const normalized = title
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s-]+/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+    const candidate = (input || '').trim() || normalized.replace(/-+/g, '-').replace(/(^-|-$)/g, '').toLowerCase();
+    if (candidate) return candidate;
+    if (fallback?.trim()) return fallback.trim();
+    return `article-${Date.now()}`;
+  }
+
   const handleTitleChange = (title: string) => {
     setFormData({
       ...formData,
       title,
-      slug: generateSlug(title),
+      slug: deriveSlug(formData.slug, title, article?.slug),
     })
   }
 
   const handleSaveDraft = async () => {
     if (!formData.title || !formData.content) return
+    // Disable auto-insert for new articles; only allow auto-save for existing articles
+    if (!article) return
 
     const supabases = supabase
 
@@ -123,38 +153,84 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
         slug: formData.slug || generateSlug(formData.title),
         excerpt: formData.excerpt || null,
         content: formData.content,
-        author_id: userId,
-        status: "draft",
+        status: article ? article.status : "draft",
         category_id: formData.category_id ? Number(formData.category_id) : null,
         featured_image: derivedFeatured,
         updated_at: new Date().toISOString(),
       }
 
       if (article) {
-        const { error } = await supabases
+        const result = await supabases
           .from("articles")
           .update(articleData)
           .eq("id", article.id)
-          .select("id")
+          .select("id, status, featured_image")
           .single()
+        
+        const { data: updatedRow, error } = result as { data: ArticleRow | null; error: any }
 
         if (error) {
-          console.error("Auto-save failed (update):", { message: error.message, details: (error as any).details, hint: (error as any).hint })
-        } else {
-          toast({ title: "Draft saved", description: "Your changes have been auto-saved." })
+          console.error("Auto-save failed (update):", { 
+            message: error.message, 
+            details: (error as any).details, 
+            hint: (error as any).hint 
+          })
+          throw error
         }
+        
+        // Update the form data with any server-returned values
+        const row = (updatedRow ?? null) as ArticleRow | null
+
+        if (row) {
+          setFormData(prev => ({
+            ...prev,
+            status: row.status || prev.status,
+            featured_image: row.featured_image || prev.featured_image
+          }))
+        }
+        
+        toast({ 
+          title: "Draft saved", 
+          description: "Your changes have been saved.",
+          variant: "default"
+        })
       } else {
-        const { error } = await supabases
+        const result = await supabases
           .from("articles")
           .insert(articleData)
-          .select("id")
+          .select("id, status, featured_image")
           .single()
+        
+        const { data: insertedRow, error } = result as { data: ArticleRow | null; error: any }
 
         if (error) {
-          console.error("Auto-save failed (insert):", { message: error.message, details: (error as any).details, hint: (error as any).hint })
-        } else {
-          toast({ title: "Draft saved", description: "Your draft has been auto-saved." })
+          console.error("Auto-save failed (insert):", { 
+            message: error.message, 
+            details: (error as any).details, 
+            hint: (error as any).hint 
+          })
+          throw error
         }
+        
+        // If this was a new article, update the URL with the new ID
+        const row = (insertedRow ?? null) as ArticleRow | null
+
+        if (row?.id) {
+          window.history.replaceState({}, '', `/dashboard/reporter/articles/${row.id}/edit`)
+          
+          // Update the form data with server-returned values
+          setFormData(prev => ({
+            ...prev,
+            status: row.status || prev.status,
+            featured_image: row.featured_image || prev.featured_image
+          }))
+        }
+        
+        toast({ 
+          title: "Draft saved", 
+          description: "Your draft has been saved.",
+          variant: "default"
+        })
       }
     } catch (err) {
       console.error("Auto-save failed (exception):", err)
@@ -188,14 +264,29 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
     }
 
     try {
-      const effectiveStatus: "draft" | "submitted" | "published" = forceDraft 
-        ? "draft" 
-        : submitStatus === "pending" 
-          ? "submitted" 
+      // Determine the effective status for this submission.
+      // If a reporter (forceDraft) is editing an existing article, preserve its current status instead of forcing to draft.
+      const normalizedExisting = (article?.status || "").toLowerCase()
+      const existingStatus: "draft" | "pending" | "published" | null =
+        normalizedExisting === "draft"
+          ? "draft"
+          : normalizedExisting === "pending"
+          ? "pending"
+          : normalizedExisting === "published"
+          ? "published"
+          : null
+
+      const effectiveStatus: "draft" | "pending" | "published" =
+        article && forceDraft && existingStatus
+          ? existingStatus
+          : forceDraft
+          ? "draft"
+          : submitStatus === "pending"
+          ? "pending"
           : submitStatus
 
-      // Prepare article data - don't include media as JSON if it's not in schema
-      // Derive featured image if absent
+      // Prepare article data - derive featured image from media or content
+      // Note: media is stored in formData but not saved to articles table (no media column exists)
       const firstMediaImage2 = (formData.media || []).find((m) => (m as any)?.type === 'image')?.url || null
       const firstImgMatch2 = (formData.content || '').match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i)
       const firstImgInContent2 = firstImgMatch2 ? firstImgMatch2[1] : null
@@ -206,7 +297,6 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
         slug: formData.slug || generateSlug(formData.title),
         excerpt: formData.excerpt || null,
         content: formData.content,
-        author_id: userId,
         status: effectiveStatus,
         category_id: formData.category_id ? Number(formData.category_id) : null,
         featured_image: derivedFeatured2,
@@ -221,55 +311,72 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
       let articleId: string
 
       if (article) {
-        const { data, error } = await supabases
+        const result = await supabases
           .from("articles")
           .update(articleData)
           .eq("id", article.id)
-          .select()
+          .select("id")
           .single()
+        
+        const { data, error } = result as { data: { id: string } | null; error: any }
 
         if (error) {
           console.error("Update error:", error)
-          throw new Error(error.message || "Failed to update article")
+          // Handle different error formats
+          const errorMessage = error?.message 
+            || error?.error 
+            || (typeof error === 'string' ? error : JSON.stringify(error))
+            || "Failed to update article"
+          throw new Error(errorMessage)
+        }
+
+        if (!data) {
+          throw new Error("Failed to update article: no data returned")
         }
 
         articleId = article.id
       } else {
-        const { data, error } = await supabases
+        const result = await supabases
           .from("articles")
-          .insert(articleData)
-          .select()
+          .insert({ ...articleData, author_id: userId })
+          .select("id")
           .single()
+        
+        const { data, error } = result as { data: { id: string } | null; error: any }
 
         if (error) {
           console.error("Insert error:", error)
-          throw new Error(error.message || "Failed to create article")
+          // Handle different error formats
+          const errorMessage = error?.message 
+            || error?.error 
+            || (typeof error === 'string' ? error : JSON.stringify(error))
+            || "Failed to create article"
+          throw new Error(errorMessage)
+        }
+
+        if (!data || !data.id) {
+          throw new Error("Failed to create article: no ID returned")
         }
 
         articleId = data.id
       }
 
-      // Add tags if selected
-      if (selectedTags.length > 0 && articleId) {
-        // Delete existing tags first
+      // Update tags: always delete existing, then insert selected (if any)
+      if (articleId) {
         await supabases.from("article_tags").delete().eq("article_id", articleId)
-        
-        // Insert new tags
         if (selectedTags.length > 0) {
           const { error: tagError } = await supabases
             .from("article_tags")
             .insert(selectedTags.map((tagId) => ({ article_id: articleId, tag_id: tagId })))
-          
           if (tagError) {
             console.error("Tag error:", tagError)
-            // Don't throw - tags are optional
           }
         }
       }
 
       // Notify success before navigating
       if (effectiveStatus === "draft") {
-        toast({ title: "Draft saved", description: "Your draft has been saved successfully." })
+        toast({ title: article ? "Changes saved" : "Draft saved", description: article ? "Your changes have been saved." : "Your draft has been saved successfully." })
       }
 
       router.push(afterSaveHref || "/dashboard/articles")
@@ -342,8 +449,12 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
               <div className="space-y-2">
                 <Label htmlFor="tags">Tags</Label>
                 <Select
-                  value={selectedTags[0]?.toString()}
-                  onValueChange={(value) => setSelectedTags([...selectedTags, Number.parseInt(value)])}
+                  value={undefined}
+                  onValueChange={(value) => {
+                    const v = Number.parseInt(value)
+                    if (!Number.isFinite(v)) return
+                    setSelectedTags((prev) => (prev.includes(v) ? prev : [...prev, v]))
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Add tags" />
@@ -356,6 +467,26 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {selectedTags.map((id) => {
+                      const t = tags.find((tg) => tg.id === id)
+                      return (
+                        <div key={id} className="flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs">
+                          <span>{t?.name || `Tag ${id}`}</span>
+                          <button
+                            type="button"
+                            className="ml-1 text-slate-500 hover:text-slate-700"
+                            onClick={() => setSelectedTags((prev) => prev.filter((x) => x !== id))}
+                            aria-label="Remove tag"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -383,17 +514,20 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
               </div>
             )}
 
-            <div className="flex flex-wrap gap-3 pt-4">
+            {(() => {
+              const canSubmitForReview = Boolean(formData.category_id) && Boolean(formData.featured_image)
+              return (
+                <div className="flex flex-wrap gap-3 pt-4">
               <Button type="button" variant="outline" onClick={(e) => handleSubmit(e, "draft")} disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save Draft
+                {article && forceDraft ? "Update Article" : "Save Draft"}
               </Button>
               {!forceDraft && (
                 <>
                   <Button
                     type="button"
                     onClick={(e) => handleSubmit(e, "pending")}
-                    disabled={isLoading}
+                    disabled={isLoading || !canSubmitForReview}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
@@ -402,7 +536,7 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
                   <Button
                     type="button"
                     onClick={(e) => handleSubmit(e, "published")}
-                    disabled={isLoading}
+                    disabled={isLoading || !canSubmitForReview}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -413,7 +547,14 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref }: Arti
               <Button type="button" variant="ghost" onClick={() => router.back()} disabled={isLoading}>
                 Cancel
               </Button>
+              {!forceDraft && !canSubmitForReview && (
+                <div className="w-full text-xs text-slate-500">
+                  To submit for review or publish, please select a Category and set a Featured image.
+                </div>
+              )}
             </div>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>

@@ -253,7 +253,8 @@ export default async function SuperAdminUsersPage({
                           {u.created_at ? new Date(u.created_at).toLocaleDateString() : "N/A"}
                         </span>
                       </td>
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pr-4 flex gap-2">
+                        <Link href={`/dashboard/superadmin/users/${u.id}`} className="px-3 py-1 rounded border">Manage</Link>
                         <form action={deleteUser}>
                           <input type="hidden" name="id" value={u.id} />
                           <Button size="sm" variant="outline">Delete</Button>
