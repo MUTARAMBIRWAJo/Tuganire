@@ -59,7 +59,8 @@ export default async function EditArticlePage({ params }: EditArticlePageProps) 
     .select("tag_id")
     .eq("article_id", id)
 
-  // Parse media if it exists (though it's not in the schema, we'll handle it)
+  // Initialize media array - use featured image if available
+  // Note: media column doesn't exist in articles table, so we use featured_image as fallback
   let media: MediaItem[] = []
   if (article.featured_image) {
     media = [{
@@ -107,6 +108,7 @@ export default async function EditArticlePage({ params }: EditArticlePageProps) 
               featured_image: article.featured_image,
               media: media,
             }}
+            initialTagIds={(articleTags || []).map((t: any) => Number(t.tag_id)).filter((n: any) => Number.isFinite(n))}
             forceDraft={isReporter}
             afterSaveHref={backLink}
           />

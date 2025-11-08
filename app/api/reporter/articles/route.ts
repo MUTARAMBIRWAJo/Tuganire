@@ -39,7 +39,15 @@ export async function GET(req: Request) {
     const { data, count, error } = await list.order("created_at", { ascending: false }).range(fromIdx, toIdx)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    return NextResponse.json({ items: data || [], count: count || 0, page, pageSize })
+    // Ensure count is always a number
+    const totalCount = typeof count === 'number' ? count : 0;
+    
+    return NextResponse.json({ 
+      items: Array.isArray(data) ? data : [], 
+      count: totalCount, 
+      page, 
+      pageSize 
+    })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "Unknown error" }, { status: 500 })
   }

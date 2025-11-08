@@ -19,6 +19,21 @@ export interface AppUser {
   avatar_url: string | null
   role: UserRole
   created_at: string
+  updated_at?: string | null
+  bio?: string | null
+  phone?: string | null
+  email_public?: boolean
+  website?: string | null
+  twitter_url?: string | null
+  facebook_url?: string | null
+  linkedin_url?: string | null
+  instagram_url?: string | null
+  youtube_url?: string | null
+  show_email?: boolean
+  show_phone?: boolean
+  show_social_links?: boolean
+  location?: string | null
+  is_approved?: boolean
 }
 
 export interface Article {

@@ -7,6 +7,7 @@ import { FileText, CheckCircle, Clock, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ReporterStatsPanel } from "@/components/reporter-stats-panel"
+import { ReporterRecentList } from "@/components/reporter-recent-list"
 
 export default async function ReporterDashboard({
   searchParams,
@@ -184,40 +185,7 @@ export default async function ReporterDashboard({
               </div>
             </form>
             {recentArticles && recentArticles.length > 0 ? (
-              <div className="space-y-4">
-                {recentArticles.map((article) => {
-                  const cat = Array.isArray(article.category) ? (article.category as any[])[0] : (article.category as any)
-                  return (
-                  <div key={article.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                    <div className="flex-1">
-                      <h3 className="font-medium">{article.title}</h3>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
-                        <span>{cat?.name || "Uncategorized"}</span>
-                        <span>•</span>
-                        <span>{new Date(article.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          article.status === "published"
-                            ? "bg-green-100 text-green-700"
-                            : article.status === "pending"
-                              ? "bg-blue-100 text-blue-700"
-                              : article.status === "draft"
-                                ? "bg-slate-100 text-slate-700"
-                                : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {article.status}
-                      </span>
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
-                    </div>
-                  </div>)
-                })}
-              </div>
+              <ReporterRecentList items={recentArticles as any} />
             ) : (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-slate-300 mx-auto mb-4" />

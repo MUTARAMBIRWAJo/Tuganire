@@ -28,6 +28,24 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
     const files = e.target.files
     if (!files || files.length === 0) return
 
+    // Check authentication - use getSession which is more reliable
+    // Note: This is a non-blocking check since the page already ensures authentication
+    // If auth check fails, we proceed anyway and let storage RLS handle authorization
+    try {
+      const { data: session } = await supabases.auth.getSession()
+      if (!session?.session?.user) {
+        // Try getUser as fallback
+        const { data: auth } = await supabases.auth.getUser()
+        if (!auth?.user) {
+          // Only warn, don't block - the page should already ensure auth
+          console.warn("No active session found, but proceeding with upload")
+        }
+      }
+    } catch (err) {
+      // Non-blocking: proceed with upload and let storage handle auth errors
+      console.warn("Auth check failed, proceeding anyway:", err)
+    }
+
     // Ensure bucket exists (server will create if missing)
     try {
       const response = await fetch("/api/storage/ensure-bucket", {
@@ -83,6 +101,9 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
         if (error) {
           if (error.message?.includes("Bucket not found") || error.message?.includes("bucket")) {
             throw new Error(`Storage bucket "${BUCKET}" not found. Please ensure the bucket exists in your Supabase project.`)
+          }
+          if (error.message?.includes("row-level security") || error.message?.includes("RLS") || error.message?.includes("policy")) {
+            throw new Error(`Permission denied: You don't have permission to upload files. Please contact an administrator to set up storage permissions.`)
           }
           throw error
         }

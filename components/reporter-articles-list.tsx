@@ -3,8 +3,9 @@
 import useSWR from "swr"
 import { useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Edit, Eye, Trash2 } from "lucide-react"
+import { Edit, Eye, Trash2, Loader2 } from "lucide-react"
 import { ConfirmButton } from "@/components/ui/confirm-button"
 import { SimpleToast } from "@/components/ui/simple-toast"
 
@@ -27,11 +28,14 @@ export type ReporterArticlesListProps = {
   to?: string
   page: number
   pageSize?: number
+  editLabel?: string
 }
 
 export function ReporterArticlesList(props: ReporterArticlesListProps) {
-  const { q = "", status = "", category = "", from = "", to = "", page, pageSize = 10 } = props
+  const { q = "", status = "", category = "", from = "", to = "", page, pageSize = 10, editLabel = "Edit" } = props
   const [toast, setToast] = useState<string>("")
+  const router = useRouter()
+  const [navigatingId, setNavigatingId] = useState<string>("")
 
   const query = useMemo(() => {
     const p = new URLSearchParams()
@@ -138,11 +142,50 @@ export function ReporterArticlesList(props: ReporterArticlesListProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/articles/${article.id}/edit`}>
-                      <Edit className="h-4 w-4" />
-                    </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setNavigatingId(article.id)
+                      router.push(`/dashboard/reporter/articles/${article.id}/edit`)
+                    }}
+                    disabled={navigatingId === article.id}
+                  >
+                    {navigatingId === article.id ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {editLabel}
+                      </>
+                    ) : (
+                      <>
+                        <Edit className="mr-2 h-4 w-4" />
+                        {editLabel}
+                      </>
+                    )}
                   </Button>
+                  {String(article.status).toLowerCase() !== "published" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setNavigatingId(article.id)
+                        router.push(`/dashboard/reporter/articles/${article.id}/edit`)
+                      }}
+                      disabled={navigatingId === article.id}
+                    >
+                      {navigatingId === article.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Modify
+                        </>
+                      ) : (
+                        <>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Modify
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Button
                     variant="secondary"
                     size="sm"
