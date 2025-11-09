@@ -43,11 +43,26 @@ export async function GET() {
       .order('published_at', { ascending: false })
       .limit(4)
 
+    const base = (arts || []).map(normalizeArticle)
+    const withCounts = await Promise.all((base || []).map(async (a: any) => {
+      if (!a?.slug) return a
+      try {
+        const { count: cCount } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved')
+        return { ...a, comments_count: cCount ?? 0 }
+      } catch {
+        return { ...a, comments_count: 0 }
+      }
+    }))
+
     results.push({
       id: c.id,
       name: c.name,
       slug: c.slug,
-      articles: (arts || []).map(normalizeArticle),
+      articles: withCounts,
     })
   }
 

@@ -35,7 +35,25 @@ const fetcher = async (url: string) => {
     .range(from, to)
 
   if (error) throw error
-  return data || []
+  
+  // Attach comments_count per article
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 }
+      try {
+        const { count } = await supabase
+          .from("comments")
+          .select("id", { count: "exact", head: true })
+          .eq("article_slug", a.slug)
+          .eq("status", "approved")
+        return { ...a, comments_count: count ?? 0 }
+      } catch {
+        return { ...a, comments_count: 0 }
+      }
+    })
+  )
+  
+  return withCounts || []
 }
 
 export function LatestArticlesGrid() {

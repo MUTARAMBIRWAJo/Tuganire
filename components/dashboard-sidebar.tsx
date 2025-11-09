@@ -47,6 +47,7 @@ const roleLinks: Record<string, NavLink[]> = {
     { name: "Manage Users", icon: Users, path: "/dashboard/superadmin/users" },
     { name: "Manage Articles", icon: FileText, path: "/dashboard/superadmin/articles" },
     { name: "Moderation Queue", icon: CheckCircle, path: "/dashboard/superadmin/moderation" },
+    { name: "Comments", icon: MessageSquare, path: "/dashboard/superadmin/comments" },
     { name: "Approvals", icon: ShieldCheck, path: "/dashboard/superadmin/approvals" },
     { name: "Categories", icon: FolderTree, path: "/dashboard/superadmin/categories" },
     { name: "Tags", icon: Tag, path: "/dashboard/superadmin/tags" },

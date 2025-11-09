@@ -1,50 +1,132 @@
 "use client"
 import { useEffect, useState } from "react"
-import { ArticleCard } from "@/components/article-card"
+import Link from "next/link"
+import Image from "next/image"
+import { Clock, Eye, MessageCircle, ArrowRight } from "lucide-react"
 import ArticleCardSkeleton from "@/components/ArticleCardSkeleton"
 
 type Article = any
 
-export default function HomeLatestGrid({ title = "Latest" }: { title?: string }) {
+export default function HomeLatestGrid({ title = "Latest News" }: { title?: string }) {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<Article[]>([])
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch(`/api/public/articles?page=0&pageSize=8`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((json) => setItems(json.items || []))
-      .finally(() => setLoading(false))
+    const run = async () => {
+      try {
+        const r = await fetch(`/api/public/articles?page=0&pageSize=8`, { signal: controller.signal })
+        if (!r.ok) throw new Error(`Failed to load latest articles: ${r.status}`)
+        const json = await r.json()
+        if (!controller.signal.aborted) setItems(json.items || [])
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          console.error('[HomeLatestGrid] fetch error:', err)
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false)
+      }
+    }
+    run()
     return () => controller.abort()
   }, [])
 
+  const formatTimeAgo = (dateString: string | null) => {
+    if (!dateString) return ""
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return "Just now"
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  }
+
   return (
-    <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">{title}</h2>
+    <section className="mx-auto max-w-7xl px-4">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Clock className="h-5 w-5 text-blue-600" />
+          <h2 className="text-2xl font-bold">{title}</h2>
+        </div>
+        <Link 
+          href="/articles" 
+          className="text-sm text-blue-600 hover:underline font-medium flex items-center gap-1"
+        >
+          View All <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
-      <div className="grid gap-6 md:grid-cols-4">
-        {loading
-          ? Array.from({ length: 8 }).map((_, i) => <ArticleCardSkeleton key={i} compact />)
-          : items.map((a: any) => {
-              const img = a?.featured_image || a?.image_url || a?.cover_image || a?.image || null
-              if (!img) {
-                console.warn('[HomeLatestGrid] Missing image for item', { id: a?.id, slug: a?.slug, title: a?.title })
-              }
-              return (
-                <ArticleCard
-                  key={a.id}
-                  article={{
-                    ...a,
-                    featured_image: img,
-                    author: a.author || undefined,
-                    category: a.category || undefined,
-                  }}
-                  compact
-                />
-              )
-            })}
-      </div>
+      
+      {loading ? (
+        <div className="grid gap-6 md:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => <ArticleCardSkeleton key={i} compact />)}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {items.map((article: any, index: number) => {
+            const img = article?.featured_image || article?.image_url || article?.cover_image || article?.image || null
+            const author = Array.isArray(article.author) ? article.author[0] : article.author
+            const category = Array.isArray(article.category) ? article.category[0] : article.category
+            
+            return (
+              <Link
+                key={article.id}
+                href={`/articles/${article.slug}`}
+                className="group flex gap-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200"
+              >
+                {img && (
+                  <div className="relative w-32 h-24 flex-shrink-0 rounded overflow-hidden bg-slate-200 dark:bg-slate-800">
+                    <Image
+                      src={img}
+                      alt={article.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="128px"
+                    />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 mb-1">
+                        {article.title}
+                      </h3>
+                      {article.excerpt && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1 mb-2">
+                          {article.excerpt}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                    {category && (
+                      <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-medium">
+                        {category.name}
+                      </span>
+                    )}
+                    {article.published_at && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatTimeAgo(article.published_at)}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      {article.views_count ?? 0}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MessageCircle className="h-3 w-3" />
+                      {article.comments_count ?? 0}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
     </section>
   )
 }

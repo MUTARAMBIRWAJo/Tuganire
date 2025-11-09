@@ -35,6 +35,8 @@ interface ArticleFormProps {
     category_id: string | null
     featured_image: string | null
     media: MediaItem[]
+    video_url?: string | null
+    videos?: string[]
   }
 }
 
@@ -62,6 +64,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
     category_id: article?.category_id || "",
     featured_image: article?.featured_image || "",
     media: article?.media || ([] as MediaItem[]),
+    video_url: article?.video_url || null,
+    videos: article?.videos || [],
   })
 
   const supabases = supabase
@@ -156,6 +160,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
         status: article ? article.status : "draft",
         category_id: formData.category_id ? Number(formData.category_id) : null,
         featured_image: derivedFeatured,
+        video_url: formData.video_url || null,
+        videos: formData.videos || [],
         updated_at: new Date().toISOString(),
       }
 
@@ -300,6 +306,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
         status: effectiveStatus,
         category_id: formData.category_id ? Number(formData.category_id) : null,
         featured_image: derivedFeatured2,
+        video_url: formData.video_url || null,
+        videos: formData.videos || [],
         updated_at: new Date().toISOString(),
       }
 
@@ -571,6 +579,11 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
               onChange={(media) => setFormData({ ...formData, media })}
               featuredImage={formData.featured_image}
               onFeaturedChange={(url) => setFormData({ ...formData, featured_image: url })}
+              videoUrl={formData.video_url}
+              onVideoChange={(url) => setFormData({ ...formData, video_url: url || null })}
+              videos={formData.videos}
+              onVideosChange={(urls: string[]) => setFormData({ ...formData, videos: urls })}
+              maxImages={12}
             />
             
             {/* Featured Image Preview */}
@@ -590,6 +603,14 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
                     <Star className="h-3 w-3 fill-current" />
                     Featured
                   </div>
+                </div>
+              </div>
+            )}
+            {formData.video_url && (
+              <div className="mt-4 p-3 border rounded-lg bg-slate-50">
+                <Label className="text-sm font-medium text-slate-700 mb-2 block">Selected Video Preview</Label>
+                <div className="relative w-full rounded-lg overflow-hidden border-2 border-blue-300">
+                  <video src={formData.video_url} controls className="w-full max-h-64 bg-black" />
                 </div>
               </div>
             )}

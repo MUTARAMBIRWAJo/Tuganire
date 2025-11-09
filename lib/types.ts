@@ -47,6 +47,8 @@ export interface Article {
   category_id: number | null
   featured_image: string | null
   media: MediaItem[]
+  video_url?: string | null
+  videos?: string[]
   reading_time: number | null
   is_featured: boolean
   is_breaking: boolean | null

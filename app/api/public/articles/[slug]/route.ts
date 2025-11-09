@@ -76,7 +76,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
         .lte('published_at', new Date().toISOString())
         .neq('slug', article.slug)
         .order('published_at', { ascending: false })
-        .limit(3)
+        .limit(6)
       related = (rel || []).map(normalizeArticle)
     }
   }
@@ -90,9 +90,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       .lte('published_at', new Date().toISOString())
       .neq('slug', article.slug)
       .order('published_at', { ascending: false })
-      .limit(3)
+      .limit(6)
     related = (recent || []).map(normalizeArticle)
   }
 
-  return NextResponse.json({ article, media: media || [], related }, { status: 200 })
+  // Attach comments_count to related articles
+  const relatedWithCounts = await Promise.all(
+    related.map(async (r: any) => {
+      if (!r?.slug) return { ...r, comments_count: 0 }
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', r.slug)
+          .eq('status', 'approved')
+        return { ...r, comments_count: count ?? 0 }
+      } catch {
+        return { ...r, comments_count: 0 }
+      }
+    })
+  )
+
+  return NextResponse.json({ article, media: media || [], related: relatedWithCounts }, { status: 200 })
 }

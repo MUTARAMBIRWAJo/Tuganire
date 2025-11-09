@@ -12,7 +12,7 @@ export async function POST(
     // Get current view count
     const { data: article, error: fetchError } = await supabase
       .from("articles")
-      .select("views_count")
+      .select("id, views_count")
       .eq("slug", slug)
       .eq("status", "published")
       .single()
@@ -30,6 +30,36 @@ export async function POST(
     if (updateError) {
       console.error("Failed to increment view count:", updateError)
       // Don't fail the request if view count update fails
+    }
+
+    // Track daily views for analytics (best-effort)
+    try {
+      const today = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+      // Try to fetch today's row
+      const { data: daily, error: dailyFetchErr } = await supabase
+        .from('article_views_daily')
+        .select('views')
+        .eq('article_id', article.id)
+        .eq('view_date', today)
+        .maybeSingle()
+
+      if (dailyFetchErr) {
+        // ignore
+      }
+
+      if (daily) {
+        await supabase
+          .from('article_views_daily')
+          .update({ views: (daily.views || 0) + 1 })
+          .eq('article_id', article.id)
+          .eq('view_date', today)
+      } else {
+        await supabase
+          .from('article_views_daily')
+          .insert({ article_id: article.id, view_date: today, views: 1 })
+      }
+    } catch (e) {
+      // ignore failures
     }
 
     return NextResponse.json({ 

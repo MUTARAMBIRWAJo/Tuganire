@@ -5,8 +5,14 @@ import BreakingNewsMarquee from "@/components/BreakingNewsMarquee"
 import FeaturedHero from "@/components/FeaturedHero"
 import TrendingRail from "@/components/TrendingRail"
 import CategoryRows from "@/components/CategoryRows"
-import { getBreaking, getFeaturedHero, getTrending, getLatestByCategoryRows } from "@/lib/homeQueries"
+import { getBreaking, getFeaturedHero, getTrending, getLatestByCategoryRows, getEditorsPicks, getMostPopular, getPhotoGallery } from "@/lib/homeQueries"
 import HomeLatestGrid from "@/components/HomeLatestGrid"
+import EditorsPicksSection from "@/components/EditorsPicksSection"
+import MostPopularSection from "@/components/MostPopularSection"
+import NewsletterSignup from "@/components/NewsletterSignup"
+import PhotoGallery from "@/components/PhotoGallery"
+import WeatherWidget from "@/components/WeatherWidget"
+import StockTicker from "@/components/StockTicker"
 
 export const revalidate = 120 // Revalidate every 2 minutes
 
@@ -34,11 +40,14 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const [breaking, hero, trending, rows] = await Promise.all([
+  const [breaking, hero, trending, rows, editorsPicks, mostPopular, photoGallery] = await Promise.all([
     getBreaking(12),
     getFeaturedHero(),
     getTrending(12),
-    getLatestByCategoryRows()
+    getLatestByCategoryRows(),
+    getEditorsPicks(6),
+    getMostPopular(6, 7), // Last 7 days
+    getPhotoGallery(8)
   ])
 
   return (
@@ -49,7 +58,7 @@ export default async function HomePage() {
         labelSingle="Breaking News"
         labelAll="Headlines"
         tickerIntervalMs={4000}
-        marqueeSpeedMs={26000}
+        marqueeSpeedMs={150000}
         className="mb-2"
         items={(breaking as any[]).map((b: any) => ({
           slug: b.slug,
@@ -65,8 +74,23 @@ export default async function HomePage() {
       <main className="max-w-6xl xl:max-w-7xl mx-auto sm:p-6 md:p-8 space-y-6 md:space-y-8">
         <FeaturedHero item={hero as any} />
         <TrendingRail items={trending as any} />
-        <CategoryRows rows={rows as any} />
-        <HomeLatestGrid title="Latest" />
+        
+        {/* Sidebar widgets row */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-3 space-y-6">
+            <EditorsPicksSection items={editorsPicks as any} />
+            <CategoryRows rows={rows as any} />
+            <MostPopularSection items={mostPopular as any} period="week" />
+            <PhotoGallery items={photoGallery as any} />
+            <HomeLatestGrid title="Latest" />
+          </div>
+          <div className="lg:col-span-1 space-y-6">
+            <WeatherWidget defaultLocation="Kigali" />
+            <StockTicker symbols={["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]} />
+          </div>
+        </div>
+        
+        <NewsletterSignup />
       </main>
 
       {/* Footer */}

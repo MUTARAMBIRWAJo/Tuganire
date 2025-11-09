@@ -145,12 +145,16 @@ export function ArticleCard({ article, compact = false }: ArticleCardProps) {
                 </span>
               )}
             </div>
-            {article.views_count > 0 && (
+            <div className="flex items-center gap-4">
               <span className="flex items-center gap-1 tabular-nums font-medium">
                 <Eye className="h-4 w-4 sm:h-5 sm:w-5" />
-                {article.views_count}
+                {Number.isFinite(Number((article as any).views_count)) ? (article as any).views_count : 0}
               </span>
-            )}
+              <span className="flex items-center gap-1 tabular-nums font-medium">
+                <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+                {Number.isFinite(Number((article as any).comments_count ?? (article as any).comment_count)) ? ((article as any).comments_count ?? (article as any).comment_count) : 0}
+              </span>
+            </div>
           </div>
         </div>
       </Link>

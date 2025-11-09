@@ -116,12 +116,12 @@ export default async function ReporterProfilePage() {
                   <div className="flex items-center gap-2">
                     <span className="text-slate-600">Email:</span>
                     <span className="text-slate-800">{email}</span>
-                  </div>
+              </div>
                 )}
               </div>
             </CardContent>
           </Card>
-        </div>
+              </div>
 
         {/* Profile Manager Component */}
         <div className="max-w-4xl">

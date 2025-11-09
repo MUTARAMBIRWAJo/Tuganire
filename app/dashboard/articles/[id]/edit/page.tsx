@@ -39,6 +39,8 @@ export default async function EditArticlePage({ params }: EditArticlePageProps) 
       status,
       category_id,
       featured_image,
+      video_url,
+      videos,
       author_id
     `)
     .eq("id", id)
@@ -107,6 +109,8 @@ export default async function EditArticlePage({ params }: EditArticlePageProps) 
               category_id: article.category_id?.toString() || null,
               featured_image: article.featured_image,
               media: media,
+              video_url: (article as any).video_url || null,
+              videos: (article as any).videos || [],
             }}
             initialTagIds={(articleTags || []).map((t: any) => Number(t.tag_id)).filter((n: any) => Number.isFinite(n))}
             forceDraft={isReporter}

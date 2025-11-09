@@ -14,15 +14,35 @@ interface MediaUploaderProps {
   onChange: (media: MediaItem[]) => void
   featuredImage: string | null
   onFeaturedChange: (url: string) => void
+  videoUrl?: string | null
+  onVideoChange?: (url: string) => void
+  videos?: string[]
+  onVideosChange?: (urls: string[]) => void
+  maxImages?: number
 }
 
-export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange }: MediaUploaderProps) {
+export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange, videoUrl, onVideoChange, videos = [], onVideosChange, maxImages }: MediaUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const supabases = supabase
   const BUCKET = process.env.NEXT_PUBLIC_SUPABASE_MEDIA_BUCKET || "media"
+
+  const uploadSingleFile = async (file: File): Promise<{ publicUrl: string; kind: "image" | "video" } | null> => {
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]
+    if (!validTypes.includes(file.type)) return null
+    const isImage = file.type.startsWith("image/")
+    const maxBytes = isImage ? 20 * 1024 * 1024 : 50 * 1024 * 1024
+    if (file.size > maxBytes) return null
+    const fileExt = file.name.split(".").pop()
+    const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`
+    const filePath = `articles/${fileName}`
+    const { error } = await supabases.storage.from(BUCKET).upload(filePath, file, { cacheControl: "3600", upsert: false })
+    if (error) return null
+    const { data: { publicUrl } } = supabases.storage.from(BUCKET).getPublicUrl(filePath)
+    return { publicUrl, kind: isImage ? "image" : "video" }
+  }
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -72,6 +92,7 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
 
     setUploading(true)
 
+    let imageCount = media.filter(m => m.type === "image").length
     for (const file of Array.from(files)) {
       // Validate file type
       const validTypes = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"]
@@ -80,9 +101,17 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
         continue
       }
 
-      // Validate file size (10MB max)
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`File too large: ${file.name}. Maximum size is 10MB.`)
+      // Validate file size (images 20MB, videos 50MB)
+      const isImage = file.type.startsWith("image/")
+      const maxBytes = isImage ? 20 * 1024 * 1024 : 50 * 1024 * 1024
+      if (file.size > maxBytes) {
+        alert(`File too large: ${file.name}. Maximum size is ${isImage ? '20MB for images' : '50MB for videos'}.`)
+        continue
+      }
+
+      // Enforce optional image cap
+      if (isImage && typeof maxImages === 'number' && imageCount >= maxImages) {
+        alert(`Image limit reached (${maxImages}). Remove some images before adding more.`)
         continue
       }
 
@@ -128,6 +157,17 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
         if (media.length === 0 && newMediaItem.type === "image") {
           onFeaturedChange(publicUrl)
         }
+        // Track videos array and primary video
+        if (newMediaItem.type === "video") {
+          if (Array.isArray(videos) && typeof onVideosChange === 'function') {
+            onVideosChange([...(videos || []), publicUrl])
+          }
+          if (typeof onVideoChange === 'function' && !videoUrl) {
+            onVideoChange(publicUrl)
+          }
+        }
+
+        if (isImage) imageCount += 1
         
         // Show success message
         setUploadSuccess(`Successfully uploaded ${file.name}`)
@@ -156,6 +196,10 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
         onFeaturedChange(firstImage.url)
       }
     }
+    // If removed item was the selected video, clear selection
+    if (videoUrl && media[index].url === videoUrl && typeof onVideoChange === 'function') {
+      onVideoChange("")
+    }
   }
 
   const setFeatured = (url: string) => {
@@ -172,7 +216,7 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
       <div>
         <Label>Media Upload</Label>
         <p className="text-sm text-slate-600 mt-1">
-          Upload images and videos (max 10MB each). Click the star to set featured image.
+          Upload images (max 20MB) and videos (max 50MB). Click the star to set featured image.
         </p>
       </div>
 
@@ -190,8 +234,107 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
         <label htmlFor="media-upload" className="cursor-pointer">
           <Upload className="h-10 w-10 text-slate-400 mx-auto mb-2" />
           <p className="text-sm font-medium text-slate-700">Click to upload or drag and drop</p>
-          <p className="text-xs text-slate-500 mt-1">Images: JPEG, PNG, WebP • Videos: MP4, WebM • Max 10MB</p>
+          <p className="text-xs text-slate-500 mt-1">Images: JPEG, PNG, WebP (≤20MB) • Videos: MP4, WebM (≤50MB)</p>
         </label>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="border rounded-lg p-3 text-center">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={async (e) => {
+              const f = e.target.files?.[0]
+              if (!f) return
+              setUploading(true)
+              const ensured = await fetch("/api/storage/ensure-bucket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bucket: BUCKET, public: true }) })
+              if (!ensured.ok) { setUploading(false); return }
+              const uploaded = await uploadSingleFile(f)
+              if (uploaded && uploaded.kind === "image") {
+                const newItem: MediaItem = { url: uploaded.publicUrl, type: "image", alt: f.name, isFeatured: true }
+                const updated = [{ ...newItem }, ...media.map(m => ({ ...m, isFeatured: false }))]
+                onChange(updated)
+                onFeaturedChange(uploaded.publicUrl)
+                setUploadSuccess(`Successfully uploaded ${f.name}`)
+                setTimeout(() => setUploadSuccess(null), 3000)
+              }
+              setUploading(false)
+              ;(e.target as HTMLInputElement).value = ""
+            }}
+            className="hidden"
+            id="featured-image-upload"
+          />
+          <label htmlFor="featured-image-upload" className="cursor-pointer inline-block">
+            <p className="text-sm font-medium text-slate-700">Upload Featured Image</p>
+            <p className="text-xs text-slate-500">JPEG, PNG, WebP</p>
+          </label>
+        </div>
+        <div className="border rounded-lg p-3 text-center">
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={async (e) => {
+              const files = Array.from(e.target.files || [])
+              if (files.length === 0) return
+              setUploading(true)
+              const ensured = await fetch("/api/storage/ensure-bucket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bucket: BUCKET, public: true }) })
+              if (!ensured.ok) { setUploading(false); return }
+              let updated = [...media]
+              let imageCount = updated.filter(m => m.type === "image").length
+              for (const f of files) {
+                const uploaded = await uploadSingleFile(f)
+                if (uploaded && uploaded.kind === "image") {
+                  if (typeof maxImages === 'number' && imageCount >= maxImages) { continue }
+                  const item: MediaItem = { url: uploaded.publicUrl, type: "image", alt: f.name, isFeatured: updated.length === 0 }
+                  updated = [...updated, item]
+                  imageCount += 1
+                }
+              }
+              onChange(updated)
+              if (!featuredImage) {
+                const first = updated.find(m => m.type === "image")
+                if (first) onFeaturedChange(first.url)
+              }
+              setUploading(false)
+              ;(e.target as HTMLInputElement).value = ""
+            }}
+            className="hidden"
+            id="gallery-images-upload"
+          />
+          <label htmlFor="gallery-images-upload" className="cursor-pointer inline-block">
+            <p className="text-sm font-medium text-slate-700">Upload Other Images</p>
+            <p className="text-xs text-slate-500">Multiple allowed</p>
+          </label>
+        </div>
+        <div className="border rounded-lg p-3 text-center">
+          <input
+            type="file"
+            accept="video/mp4,video/webm"
+            onChange={async (e) => {
+              const f = e.target.files?.[0]
+              if (!f) return
+              setUploading(true)
+              const ensured = await fetch("/api/storage/ensure-bucket", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bucket: BUCKET, public: true }) })
+              if (!ensured.ok) { setUploading(false); return }
+              const uploaded = await uploadSingleFile(f)
+              if (uploaded && uploaded.kind === "video") {
+                if (typeof onVideosChange === 'function') onVideosChange([...(videos || []), uploaded.publicUrl])
+                if (typeof onVideoChange === 'function' && !videoUrl) onVideoChange(uploaded.publicUrl)
+                setUploadSuccess(`Successfully uploaded ${f.name}`)
+                setTimeout(() => setUploadSuccess(null), 3000)
+              }
+              setUploading(false)
+              ;(e.target as HTMLInputElement).value = ""
+            }}
+            className="hidden"
+            id="video-upload"
+          />
+          <label htmlFor="video-upload" className="cursor-pointer inline-block">
+            <p className="text-sm font-medium text-slate-700">Upload Video</p>
+            <p className="text-xs text-slate-500">MP4, WebM</p>
+          </label>
+        </div>
       </div>
 
       {/* Media Grid */}
@@ -203,17 +346,20 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
                 <img
                   src={item.url || "/placeholder.svg"}
                   alt={item.alt || "Uploaded media"}
-                  className="w-full h-32 object-cover"
+                  className="w-full h-40 object-cover cursor-zoom-in"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "/placeholder.svg"
                   }}
                   onLoad={() => {
                     // Image loaded successfully
                   }}
+                  onClick={() => {
+                    if (item.url) window.open(item.url, "_blank")
+                  }}
                 />
               ) : (
-                <div className="w-full h-32 bg-slate-100 flex items-center justify-center">
-                  <Video className="h-8 w-8 text-slate-400" />
+                <div className="w-full bg-black">
+                  <video src={item.url} className="w-full h-40 object-cover" controls muted playsInline loop />
                 </div>
               )}
 
@@ -228,6 +374,17 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
                     className="h-8 w-8 p-0"
                   >
                     <Star className={`h-4 w-4 ${item.url === featuredImage ? "fill-current" : ""}`} />
+                  </Button>
+                )}
+                {item.type === "video" && typeof (onVideoChange as any) === 'function' && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={(videoUrl as any) === item.url ? "default" : "secondary"}
+                    onClick={() => (onVideoChange as any)(item.url)}
+                    className="h-8 px-2"
+                  >
+                    Set Video
                   </Button>
                 )}
                 <Button
@@ -263,6 +420,38 @@ export function MediaUploader({ media, onChange, featuredImage, onFeaturedChange
       {uploadSuccess && (
         <div className="text-center text-sm text-green-700 p-2 bg-green-50 rounded border border-green-200">
           ✓ {uploadSuccess}
+        </div>
+      )}
+
+      {Array.isArray(videos) && videos.length > 0 && (
+        <div className="space-y-2">
+          <Label>Videos</Label>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {videos.map((v, i) => (
+              <div key={`${v}-${i}`} className="relative rounded overflow-hidden border">
+                <video src={v} className="w-full h-28 object-cover bg-black" controls={false} />
+                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
+                  {typeof onVideoChange === 'function' && (
+                    <Button type="button" size="sm" variant={videoUrl === v ? "default" : "secondary"} onClick={() => onVideoChange(v)}>Set Main</Button>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      if (typeof onVideosChange === 'function') {
+                        const next = videos.filter((x) => x !== v)
+                        onVideosChange(next)
+                        if (videoUrl === v && typeof onVideoChange === 'function') onVideoChange("")
+                      }
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

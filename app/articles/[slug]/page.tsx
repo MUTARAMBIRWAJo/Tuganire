@@ -9,6 +9,8 @@ import { SiteFooter } from "@/components/site-footer"
 import { ArticleCard } from "@/components/article-card"
 import type { Metadata } from "next"
 import Prose from "@/components/Prose"
+import CommentsSection from "@/components/comments-section"
+import RelatedArticles from "@/components/RelatedArticles"
 
 export const revalidate = 300 // Revalidate every 5 minutes
 
@@ -314,34 +316,19 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             )}
           </article>
 
-          {/* Related Stories */}
-          <div className="max-w-6xl mx-auto mt-16">
-            <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Related Stories</h2>
-            {finalRelated && finalRelated.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-3">
-                {finalRelated.map((related: any) => {
-                  const relatedAuthor = Array.isArray(related.author) ? related.author[0] : related.author
-                  const relatedCategory = Array.isArray(related.category) ? related.category[0] : related.category
-                  return (
-                    <ArticleCard
-                      key={related.id}
-                      article={{
-                        ...related,
-                        author: relatedAuthor || undefined,
-                        category: relatedCategory || undefined,
-                      }}
-                    />
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="rounded border border-slate-200 dark:border-slate-800 p-6 text-slate-600 dark:text-slate-300">
-                No related stories to show yet.
-              </div>
-            )}
-          </div>
+          {/* Related Articles */}
+          {finalRelated && finalRelated.length > 0 && (
+            <RelatedArticles articles={finalRelated} currentSlug={slug} />
+          )}
         </div>
       </main>
+
+      {/* Comments */}
+      <section className="max-w-6xl xl:max-w-7xl mx-auto sm:p-6 md:p-8">
+        <div className="max-w-3xl md:max-w-4xl mx-auto">
+          <CommentsSection slug={slug} />
+        </div>
+      </section>
 
       <SiteFooter />
     </div>

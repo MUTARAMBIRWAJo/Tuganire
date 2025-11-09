@@ -34,7 +34,24 @@ export async function getBreaking(limit = 10) {
     }));
   }
 
-  return data ?? [];
+  // Attach approved comments_count per item
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 };
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { ...a, comments_count: count ?? 0 };
+      } catch {
+        return { ...a, comments_count: 0 };
+      }
+    })
+  );
+
+  return withCounts ?? [];
 }
 
 export async function getFeaturedHero() {
@@ -74,10 +91,26 @@ export async function getFeaturedHero() {
       : Promise.resolve({ data: null } as any)
   ]);
 
+  // Attach comments_count
+  let comments_count = 0;
+  if (article.slug) {
+    try {
+      const { count } = await sb
+        .from('comments')
+        .select('id', { count: 'exact', head: true })
+        .eq('article_slug', article.slug)
+        .eq('status', 'approved');
+      comments_count = count ?? 0;
+    } catch {
+      comments_count = 0;
+    }
+  }
+
   return {
     ...article,
     categories: category,
-    authors: author
+    authors: author,
+    comments_count
   } as any;
 }
 
@@ -126,7 +159,23 @@ export async function getTrending(limit = 10) {
       author_avatar_url: t.author_avatar_url ?? t.author?.avatar_url ?? null,
     }));
   }
-  return data ?? [];
+  // Attach approved comments_count per item
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 };
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { ...a, comments_count: count ?? 0 };
+      } catch {
+        return { ...a, comments_count: 0 };
+      }
+    })
+  );
+  return withCounts ?? [];
 }
 
 export async function getLatestByCategoryRows() {
@@ -134,7 +183,69 @@ export async function getLatestByCategoryRows() {
     .from('v_latest4_by_category')
     .select('*');
   if (error) throw error;
-  return data ?? [];
+  
+  // Attach approved comments_count per item
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 };
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { ...a, comments_count: count ?? 0 };
+      } catch {
+        return { ...a, comments_count: 0 };
+      }
+    })
+  );
+  
+  return withCounts ?? [];
+}
+
+export async function getPhotoGallery(limit = 8) {
+  const { data, error } = await sb
+    .from('articles')
+    .select(`
+      id, slug, title, featured_image, published_at, views_count,
+      category:category_id ( id, name, slug )
+    `)
+    .eq('status', 'published')
+    .not('featured_image', 'is', null)
+    .not('published_at', 'is', null)
+    .lte('published_at', new Date().toISOString())
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) throw error;
+  
+  // Attach approved comments_count per item
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 };
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { 
+          ...a, 
+          comments_count: count ?? 0,
+          category: Array.isArray(a.category) ? a.category[0] : a.category,
+        };
+      } catch {
+        return { 
+          ...a, 
+          comments_count: 0,
+          category: Array.isArray(a.category) ? a.category[0] : a.category,
+        };
+      }
+    })
+  );
+  
+  return withCounts ?? [];
 }
 
 export async function getHomepageCategories(limit = 8) {
@@ -145,6 +256,104 @@ export async function getHomepageCategories(limit = 8) {
     .limit(limit);
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getEditorsPicks(limit = 6) {
+  const { data, error } = await sb
+    .from('articles')
+    .select(`
+      id, slug, title, excerpt, featured_image, published_at, views_count,
+      category:category_id ( id, name, slug ),
+      author:author_id ( id, display_name, avatar_url )
+    `)
+    .eq('status', 'published')
+    .eq('is_editor_pick', true)
+    .not('published_at', 'is', null)
+    .lte('published_at', new Date().toISOString())
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) throw error;
+  
+  // Attach approved comments_count per item
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 };
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { 
+          ...a, 
+          comments_count: count ?? 0,
+          author: Array.isArray(a.author) ? a.author[0] : a.author,
+          category: Array.isArray(a.category) ? a.category[0] : a.category,
+        };
+      } catch {
+        return { 
+          ...a, 
+          comments_count: 0,
+          author: Array.isArray(a.author) ? a.author[0] : a.author,
+          category: Array.isArray(a.category) ? a.category[0] : a.category,
+        };
+      }
+    })
+  );
+  
+  return withCounts ?? [];
+}
+
+export async function getMostPopular(limit = 6, days = 7) {
+  const dateThreshold = new Date();
+  dateThreshold.setDate(dateThreshold.getDate() - days);
+  
+  const { data, error } = await sb
+    .from('articles')
+    .select(`
+      id, slug, title, excerpt, featured_image, published_at, views_count,
+      category:category_id ( id, name, slug ),
+      author:author_id ( id, display_name, avatar_url )
+    `)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .lte('published_at', new Date().toISOString())
+    .gte('published_at', dateThreshold.toISOString())
+    .order('views_count', { ascending: false, nullsFirst: false })
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  
+  if (error) throw error;
+  
+  // Attach approved comments_count per item
+  const withCounts = await Promise.all(
+    (data || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 };
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { 
+          ...a, 
+          comments_count: count ?? 0,
+          author: Array.isArray(a.author) ? a.author[0] : a.author,
+          category: Array.isArray(a.category) ? a.category[0] : a.category,
+        };
+      } catch {
+        return { 
+          ...a, 
+          comments_count: 0,
+          author: Array.isArray(a.author) ? a.author[0] : a.author,
+          category: Array.isArray(a.category) ? a.category[0] : a.category,
+        };
+      }
+    })
+  );
+  
+  return withCounts ?? [];
 }
 
 

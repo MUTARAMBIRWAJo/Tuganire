@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient } from "@/lib/supabase/server"
+import ViewsMiniChart from "@/components/views-mini-chart"
 
 export default async function SuperAdminAnalyticsPage() {
   const me = await getCurrentUser()
@@ -142,6 +143,17 @@ export default async function SuperAdminAnalyticsPage() {
               ) : (
                 <p className="text-slate-600">No category data.</p>
               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Views (last 30 days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ViewsMiniChart defaultRange="30d" />
             </CardContent>
           </Card>
         </div>

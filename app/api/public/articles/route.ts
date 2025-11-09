@@ -84,11 +84,27 @@ export async function GET(request: Request) {
   const { data, error, count } = await query.range(from, to);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const items = (data || []).map((a: any) => ({
+  const baseItems = (data || []).map((a: any) => ({
     ...a,
     author: Array.isArray(a.author) ? a.author[0] : a.author,
     category: Array.isArray(a.category) ? a.category[0] : a.category,
   }));
+
+  // Attach comments_count per article (small N; acceptable for pageSize <= 50)
+  const items = await Promise.all(
+    baseItems.map(async (a: any) => {
+      try {
+        const { count: cCount } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved');
+        return { ...a, comments_count: cCount ?? 0 };
+      } catch {
+        return { ...a, comments_count: 0 };
+      }
+    })
+  );
 
   return NextResponse.json({ items, total: count ?? 0 }, { status: 200 });
 }
