@@ -26,6 +26,7 @@ import {
   FileBarChart,
   ScrollText,
   HardDrive,
+  Monitor,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -57,6 +58,7 @@ const roleLinks: Record<string, NavLink[]> = {
     { name: "Storage Management", icon: HardDrive, path: "/dashboard/superadmin/storage" },
     { name: "System Health", icon: Activity, path: "/dashboard/superadmin/health" },
     { name: "Audit Logs", icon: Database, path: "/dashboard/superadmin/audit" },
+    { name: "Advertisements", icon: Monitor, path: "/dashboard/superadmin/advertisements" },
     { name: "System Settings", icon: Settings, path: "/dashboard/superadmin/settings" },
   ],
   admin: [

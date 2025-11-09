@@ -2,7 +2,7 @@ import { SiteFooter } from "@/components/site-footer"
 import { SiteHeader } from "@/components/site-header"
 import type { Metadata } from "next"
 import BreakingNewsMarquee from "@/components/BreakingNewsMarquee"
-import FeaturedHero from "@/components/FeaturedHero"
+import AdvancedHero from "@/components/AdvancedHero"
 import TrendingRail from "@/components/TrendingRail"
 import CategoryRows from "@/components/CategoryRows"
 import { getBreaking, getFeaturedHero, getTrending, getLatestByCategoryRows, getEditorsPicks, getMostPopular, getPhotoGallery } from "@/lib/homeQueries"
@@ -13,6 +13,7 @@ import NewsletterSignup from "@/components/NewsletterSignup"
 import PhotoGallery from "@/components/PhotoGallery"
 import WeatherWidget from "@/components/WeatherWidget"
 import StockTicker from "@/components/StockTicker"
+import AdvertisementMarquee from "@/components/AdvertisementMarquee"
 
 export const revalidate = 120 // Revalidate every 2 minutes
 
@@ -72,7 +73,7 @@ export default async function HomePage() {
       <SiteHeader />
 
       <main className="max-w-6xl xl:max-w-7xl mx-auto sm:p-6 md:p-8 space-y-6 md:space-y-8">
-        <FeaturedHero item={hero as any} />
+        <AdvancedHero item={hero as any} />
         <TrendingRail items={trending as any} />
         
         {/* Sidebar widgets row */}
@@ -87,6 +88,7 @@ export default async function HomePage() {
           <div className="lg:col-span-1 space-y-6">
             <WeatherWidget defaultLocation="Kigali" />
             <StockTicker symbols={["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]} />
+            <AdvertisementMarquee />
           </div>
         </div>
         
