@@ -22,13 +22,13 @@ export async function GET() {
     // Use anon client to ensure public access
     const { data, error } = await sb
       .from("advertisements")
-      .select("id, title, description, media_type, media_url, link_url, view_count")
+      .select("id, title, description, media_type, media_url, link_url, view_count, display_order")
       .eq("is_active", true)
       .or(`start_date.is.null,start_date.lte.${now}`)
       .or(`end_date.is.null,end_date.gte.${now}`)
       .order("display_order", { ascending: true })
       .order("created_at", { ascending: false })
-      .limit(10)
+      
 
     if (error) {
       console.error("Error fetching advertisements:", error)
@@ -41,23 +41,20 @@ export async function GET() {
       if (serviceKey) {
         const serviceSb = createServiceClient(supabaseUrl, serviceKey)
         data.forEach((ad) => {
-          // Fetch current count first, then increment
-          serviceSb
+          // Fetch current count first, then increment (fire-and-forget)
+          void serviceSb
             .from("advertisements")
             .select("view_count")
             .eq("id", ad.id)
             .single()
             .then(({ data: adData }) => {
               if (adData) {
-                serviceSb
+                void serviceSb
                   .from("advertisements")
                   .update({ view_count: (adData.view_count || 0) + 1 })
                   .eq("id", ad.id)
-                  .then(() => {})
-                  .catch(() => {})
               }
             })
-            .catch(() => {})
         })
       }
     }

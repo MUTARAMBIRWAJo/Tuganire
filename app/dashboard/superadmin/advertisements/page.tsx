@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import {
 import { Plus, Edit, Trash2, Image as ImageIcon, Video, Eye, MousePointerClick } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
+import { supabase } from "@/lib/supabaseClient"
 
 interface Advertisement {
   id: string
@@ -34,6 +35,10 @@ interface Advertisement {
   click_count: number
   view_count: number
   created_at: string
+  storage_bucket?: string | null
+  storage_path?: string | null
+  media_mime?: string | null
+  media_size?: number | null
 }
 
 export default function AdvertisementsPage() {
@@ -48,12 +53,18 @@ export default function AdvertisementsPage() {
     description: "",
     media_type: "image" as "image" | "video",
     media_url: "",
+    storage_bucket: "",
+    storage_path: "",
+    media_mime: "",
+    media_size: 0,
     link_url: "",
     is_active: true,
     display_order: 0,
     start_date: "",
     end_date: "",
   })
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     fetchAds()
@@ -149,6 +160,10 @@ export default function AdvertisementsPage() {
       description: ad.description || "",
       media_type: ad.media_type,
       media_url: ad.media_url,
+      storage_bucket: ad.storage_bucket || "",
+      storage_path: ad.storage_path || "",
+      media_mime: ad.media_mime || "",
+      media_size: ad.media_size || 0,
       link_url: ad.link_url || "",
       is_active: ad.is_active,
       display_order: ad.display_order,
@@ -164,6 +179,10 @@ export default function AdvertisementsPage() {
       description: "",
       media_type: "image",
       media_url: "",
+      storage_bucket: "",
+      storage_path: "",
+      media_mime: "",
+      media_size: 0,
       link_url: "",
       is_active: true,
       display_order: 0,
@@ -171,6 +190,72 @@ export default function AdvertisementsPage() {
       end_date: "",
     })
     setEditingAd(null)
+  }
+
+  const ensureBucket = async (bucket: string) => {
+    const res = await fetch("/api/storage/ensure-bucket", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bucket, public: true }),
+    })
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}))
+      throw new Error(j.error || "Failed to ensure storage bucket")
+    }
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      setUploading(true)
+      const bucket = process.env.NEXT_PUBLIC_SUPABASE_MEDIA_BUCKET || "media"
+      await ensureBucket(bucket)
+
+      const ext = file.name.split(".").pop() || "bin"
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const folder = formData.media_type === "image" ? "images" : "videos"
+      const path = `advertisements/${folder}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        })
+      if (uploadError) throw uploadError
+
+      const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path)
+      let publicUrl = pub?.publicUrl || ""
+      // If bucket is not public, ensure we have a previewable URL via signed URL
+      if (!publicUrl.includes("/object/public/")) {
+        const { data: signed } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(path, 60 * 60 * 24 * 365) // 1 year
+        if (signed?.signedUrl) {
+          publicUrl = signed.signedUrl
+        }
+      }
+
+      setFormData({
+        ...formData,
+        media_url: publicUrl,
+        storage_bucket: bucket,
+        storage_path: path,
+        media_mime: file.type,
+        media_size: file.size,
+      })
+      toast({ title: "Uploaded", description: "Media uploaded successfully" })
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message || "Could not upload file", variant: "destructive" })
+    } finally {
+      setUploading(false)
+      // clear the input value so same file can be re-selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    }
   }
 
   return (
@@ -239,18 +324,27 @@ export default function AdvertisementsPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="media_url">Media URL *</Label>
+                  <Label htmlFor="media_file">Media File *</Label>
                   <Input
-                    id="media_url"
-                    type="url"
-                    value={formData.media_url}
-                    onChange={(e) => setFormData({ ...formData, media_url: e.target.value })}
-                    placeholder="https://example.com/image.jpg or https://example.com/video.mp4"
-                    required
+                    id="media_file"
+                    type="file"
+                    accept={formData.media_type === "image" ? "image/*" : "video/*"}
+                    onChange={handleFileChange}
+                    ref={fileInputRef}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter the full URL to the image or video file
-                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Upload an {formData.media_type}</p>
+                  {uploading && <p className="text-xs text-blue-600 mt-1">Uploading...</p>}
+                  {formData.media_url && (
+                    <div className="mt-2">
+                      {formData.media_type === "image" ? (
+                        <div className="relative w-24 h-36 rounded overflow-hidden bg-slate-100">
+                          <Image src={formData.media_url} alt={formData.title} fill className="object-cover" />
+                        </div>
+                      ) : (
+                        <video src={formData.media_url} className="w-24 h-36 rounded object-cover" controls />)
+                      }
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -321,7 +415,7 @@ export default function AdvertisementsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" disabled={uploading || !formData.media_url}>
                     {editingAd ? "Update" : "Create"}
                   </Button>
                 </div>

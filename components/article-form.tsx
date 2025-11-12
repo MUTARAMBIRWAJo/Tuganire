@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, Save, Send, Star } from "lucide-react"
+import { Loader2, Save, Send, Star, Sparkles } from "lucide-react"
 import { RichTextEditor } from "./rich-text-editor"
 import { MediaUploader } from "./media-uploader"
 import type { MediaItem } from "@/lib/types"
@@ -66,6 +66,9 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
     media: article?.media || ([] as MediaItem[]),
     video_url: article?.video_url || null,
     videos: article?.videos || [],
+    seo_title: (article as any)?.seo_title || "",
+    seo_description: (article as any)?.seo_description || "",
+    seo_keywords: ((article as any)?.seo_keywords as string[] | undefined) || [],
   })
 
   const supabases = supabase
@@ -102,6 +105,34 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
       return () => clearInterval(interval)
     }
   }, [formData])
+
+  const handleGenerateSEO = async () => {
+    if (!formData.title || !formData.content) {
+      setError("Enter a title and content first to generate SEO metadata")
+      return
+    }
+    setIsLoading(true)
+    try {
+      const res = await fetch("/api/seo-generator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: formData.title, content: formData.content }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      setFormData((prev) => ({
+        ...prev,
+        seo_title: data.seoTitle || prev.seo_title || prev.title,
+        seo_description: data.seoDescription || prev.seo_description || prev.excerpt,
+        seo_keywords: Array.isArray(data.keywords) ? data.keywords : prev.seo_keywords,
+      }))
+      toast({ title: "SEO generated", description: "SEO fields populated. Review before saving." })
+    } catch (e: any) {
+      toast({ title: "SEO generation failed", description: e?.message || "Try again later", variant: "destructive" })
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const generateSlug = (title: string) => {
     return title
@@ -162,6 +193,9 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
         featured_image: derivedFeatured,
         video_url: formData.video_url || null,
         videos: formData.videos || [],
+        seo_title: formData.seo_title || null,
+        seo_description: formData.seo_description || null,
+        seo_keywords: (formData.seo_keywords || []).length ? formData.seo_keywords : null,
         updated_at: new Date().toISOString(),
       }
 
@@ -308,6 +342,9 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
         featured_image: derivedFeatured2,
         video_url: formData.video_url || null,
         videos: formData.videos || [],
+        seo_title: formData.seo_title || null,
+        seo_description: formData.seo_description || null,
+        seo_keywords: (formData.seo_keywords || []).length ? formData.seo_keywords : null,
         updated_at: new Date().toISOString(),
       }
 
@@ -515,6 +552,46 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
               onChange={(content) => setFormData({ ...formData, content })}
               placeholder="Write your article content here..."
             />
+
+            {/* SEO Section */}
+            <div className="rounded-lg border p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">SEO Metadata</h3>
+                <Button type="button" size="sm" onClick={handleGenerateSEO} disabled={isLoading}>
+                  <Sparkles className="h-4 w-4 mr-1" /> Generate SEO Metadata
+                </Button>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="seo_title">SEO Title</Label>
+                  <Input
+                    id="seo_title"
+                    value={formData.seo_title}
+                    onChange={(e) => setFormData({ ...formData, seo_title: e.target.value })}
+                    placeholder="Optimized headline for search"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="seo_keywords">SEO Keywords (comma-separated)</Label>
+                  <Input
+                    id="seo_keywords"
+                    value={(formData.seo_keywords || []).join(", ")}
+                    onChange={(e) => setFormData({ ...formData, seo_keywords: e.target.value.split(/,\s*/).filter(Boolean) })}
+                    placeholder="news, rwanda, technology, ..."
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="seo_description">Meta Description</Label>
+                  <Textarea
+                    id="seo_description"
+                    value={formData.seo_description}
+                    onChange={(e) => setFormData({ ...formData, seo_description: e.target.value })}
+                    placeholder="Concise summary for search engines (120–160 chars)"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
 
             {error && (
               <div className="rounded-md bg-red-50 p-3 border border-red-200">

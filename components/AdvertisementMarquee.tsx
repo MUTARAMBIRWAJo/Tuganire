@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Image from "next/image"
 import Link from "next/link"
 
 interface Advertisement {
@@ -16,6 +15,7 @@ interface Advertisement {
 export default function AdvertisementMarquee() {
   const [ads, setAds] = useState<Advertisement[]>([])
   const [loading, setLoading] = useState(true)
+  const [index, setIndex] = useState(0)
 
   useEffect(() => {
     const fetchAds = async () => {
@@ -34,6 +34,15 @@ export default function AdvertisementMarquee() {
     fetchAds()
   }, [])
 
+  // rotate every 60s
+  useEffect(() => {
+    if (!ads || ads.length === 0) return
+    const id = setInterval(() => {
+      setIndex((prev) => (prev + 1) % ads.length)
+    }, 60_000)
+    return () => clearInterval(id)
+  }, [ads])
+
   if (loading) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 h-[400px] flex items-center justify-center">
@@ -46,36 +55,34 @@ export default function AdvertisementMarquee() {
     return null
   }
 
-  // Duplicate ads for seamless loop
-  const duplicatedAds = [...ads, ...ads, ...ads]
-
-  const AdContent = ({ ad, index }: { ad: Advertisement; index: number }) => {
+  const AdContent = ({ ad }: { ad: Advertisement }) => {
     const content = (
-      <div className="mb-4 last:mb-0">
+      <div className="mb-2">
         {ad.media_type === "video" ? (
           <video
             src={ad.media_url}
-            className="w-full h-auto rounded-lg object-cover"
+            className="w-full h-auto rounded-lg"
             autoPlay
             loop
             muted
             playsInline
           />
         ) : (
-          <div className="relative w-full aspect-[9/16] rounded-lg overflow-hidden bg-slate-200 dark:bg-slate-700">
-            <Image
-              src={ad.media_url}
-              alt={ad.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 200px"
-            />
-          </div>
+          <img
+            src={ad.media_url}
+            alt={ad.title || "Advertisement"}
+            className="w-full h-auto rounded-lg"
+          />
         )}
-        {ad.title && (
-          <p className="mt-2 text-xs text-center text-gray-600 dark:text-gray-400 line-clamp-2">
-            {ad.title}
-          </p>
+        {(ad.title || ad.description) && (
+          <div className="mt-2 text-center">
+            {ad.title && (
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{ad.title}</p>
+            )}
+            {ad.description && (
+              <p className="text-xs text-gray-600 dark:text-gray-400">{ad.description}</p>
+            )}
+          </div>
         )}
       </div>
     )
@@ -101,32 +108,23 @@ export default function AdvertisementMarquee() {
   }
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700 overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Advertisement</h3>
       </div>
-      <div className="relative h-[400px] overflow-hidden">
-        <div
-          className="absolute inset-0 flex flex-col"
-          style={{
-            animation: `scroll-vertical ${ads.length * 3}s linear infinite`,
-          }}
-        >
-          {duplicatedAds.map((ad, index) => (
-            <AdContent key={`${ad.id}-${index}`} ad={ad} index={index} />
-          ))}
-        </div>
+      <div>
+        <AdContent ad={ads[index]} />
+        {ads.length > 1 && (
+          <div className="mt-2 flex items-center justify-center gap-1">
+            {ads.map((_, i) => (
+              <span
+                key={i}
+                className={`inline-block h-1.5 w-1.5 rounded-full ${i === index ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"}`}
+              />)
+            )}
+          </div>
+        )}
       </div>
-      <style jsx>{`
-        @keyframes scroll-vertical {
-          0% {
-            transform: translateY(0);
-          }
-          100% {
-            transform: translateY(-33.333%);
-          }
-        }
-      `}</style>
     </div>
   )
 }

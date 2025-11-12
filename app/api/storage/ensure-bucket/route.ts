@@ -48,17 +48,32 @@ export async function POST(req: Request) {
       // Bucket exists, update it if needed
       const { error: updateErr } = await admin.storage.updateBucket(bucket, { public: !!isPublic })
       if (updateErr) {
+        // If it failed to update and bucket is not public while we requested public, surface an error
+        const currentlyPublic = (existingBucket as any).public === true
+        if (isPublic && !currentlyPublic) {
+          return NextResponse.json({ ok: false, error: `Bucket '${bucket}' exists but could not be set to public: ${updateErr.message}` }, { status: 500 })
+        }
         console.warn("Failed to update bucket:", updateErr)
-        // Don't fail if update fails, bucket exists which is what we need
       }
-      return NextResponse.json({ ok: true, created: false, data: existingBucket })
+      // Re-fetch bucket details to ensure flag
+      const { data: bucketsAfter } = await admin.storage.listBuckets()
+      const finalBucket = bucketsAfter?.find((b) => b.name === bucket)
+      return NextResponse.json({ ok: true, created: false, data: finalBucket || existingBucket })
     }
 
     // Bucket doesn't exist, create it
     const { data: createData, error: createErr } = await admin.storage.createBucket(bucket, {
       public: !!isPublic,
-      fileSizeLimit: 10 * 1024 * 1024,
-      allowedMimeTypes: ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/webm"],
+      fileSizeLimit: 100 * 1024 * 1024, // 100MB to allow larger videos
+      allowedMimeTypes: [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+        "image/svg+xml",
+        "video/mp4",
+        "video/webm",
+      ],
     })
 
     if (createErr) {

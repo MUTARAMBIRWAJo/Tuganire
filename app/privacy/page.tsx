@@ -1,25 +1,11 @@
-import Link from "next/link"
-import Image from "next/image"
+import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/site-footer"
 
 export default function PrivacyPage() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="border-b bg-white sticky top-0 z-50">
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center gap-2">
-              <Image src="/placeholder-logo.png" alt="Tuganire News logo" width={40} height={40} className="h-8 w-8 md:h-10 md:w-10" priority />
-              <span className="text-xl md:text-2xl font-bold text-slate-900">Tuganire News</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/" className="text-sm font-medium hover:text-primary">Home</Link>
-              <Link href="/articles" className="text-sm font-medium hover:text-primary">Articles</Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 py-12 bg-slate-50">
+    <div className="flex min-h-screen flex-col bg-white dark:bg-slate-950">
+      <SiteHeader />
+      <main className="flex-1 py-12">
         <div className="container mx-auto px-4 max-w-3xl">
           <h1 className="text-4xl font-bold mb-4">Privacy Policy</h1>
           <p className="text-slate-700 leading-relaxed mb-8">We value your privacy. This policy explains what data we collect, how we use it, how long we keep it, and the rights you have over your information.</p>
@@ -67,6 +53,7 @@ export default function PrivacyPage() {
           </section>
         </div>
       </main>
+      <SiteFooter />
     </div>
   )
 }
