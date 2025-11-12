@@ -66,6 +66,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
     media: article?.media || ([] as MediaItem[]),
     video_url: article?.video_url || null,
     videos: article?.videos || [],
+    article_type: (article as any)?.article_type || "text",
+    youtube_link: (article as any)?.youtube_link || "",
     seo_title: (article as any)?.seo_title || "",
     seo_description: (article as any)?.seo_description || "",
     seo_keywords: ((article as any)?.seo_keywords as string[] | undefined) || [],
@@ -193,6 +195,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
         featured_image: derivedFeatured,
         video_url: formData.video_url || null,
         videos: formData.videos || [],
+        article_type: formData.article_type || 'text',
+        youtube_link: formData.youtube_link || null,
         seo_title: formData.seo_title || null,
         seo_description: formData.seo_description || null,
         seo_keywords: (formData.seo_keywords || []).length ? formData.seo_keywords : null,
@@ -283,8 +287,18 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
     setError(null)
 
     // Validation
-    if (!formData.title || !formData.content) {
-      setError("Title and content are required")
+    if (!formData.title) {
+      setError("Title is required")
+      setIsLoading(false)
+      return
+    }
+    if (formData.article_type === 'video' && !formData.youtube_link) {
+      setError("YouTube link is required for video articles")
+      setIsLoading(false)
+      return
+    }
+    if (formData.article_type !== 'video' && !formData.content) {
+      setError("Content is required for text articles")
       setIsLoading(false)
       return
     }
@@ -342,6 +356,8 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
         featured_image: derivedFeatured2,
         video_url: formData.video_url || null,
         videos: formData.videos || [],
+        article_type: formData.article_type || 'text',
+        youtube_link: formData.youtube_link || null,
         seo_title: formData.seo_title || null,
         seo_description: formData.seo_description || null,
         seo_keywords: (formData.seo_keywords || []).length ? formData.seo_keywords : null,
@@ -448,6 +464,32 @@ export function ArticleForm({ userId, article, forceDraft, afterSaveHref, initia
             <CardTitle>{article ? "Edit Article" : "Create New Article"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="article_type">Article Type</Label>
+                <Select
+                  value={formData.article_type}
+                  onValueChange={(value) => setFormData({ ...formData, article_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="video">Video</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="youtube_link">YouTube Link {formData.article_type === 'video' ? '*' : ''}</Label>
+                <Input
+                  id="youtube_link"
+                  value={formData.youtube_link}
+                  onChange={(e) => setFormData({ ...formData, youtube_link: e.target.value })}
+                  placeholder="https://www.youtube.com/watch?v=abc123"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
               <Input

@@ -32,16 +32,18 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   const author = Array.isArray(article.author) ? article.author[0] : article.author
   const category = Array.isArray(article.category) ? article.category[0] : article.category
 
+  const isVideo = (article as any)?.article_type === 'video' && !!(article as any)?.youtube_link
   return {
     title: article.title,
     description: article.excerpt || undefined,
     openGraph: {
       title: article.title,
       description: article.excerpt || undefined,
-      type: "article",
+      type: isVideo ? "video.other" : "article",
       publishedTime: article.published_at || undefined,
       authors: author?.display_name ? [author.display_name] : undefined,
       images: article.featured_image ? [article.featured_image] : undefined,
+      videos: isVideo ? [String((article as any).youtube_link)] as any : undefined,
     },
     twitter: {
       card: "summary_large_image",
@@ -73,6 +75,20 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   const author = Array.isArray(article.author) ? article.author[0] : article.author
   const category = Array.isArray(article.category) ? article.category[0] : article.category
   const tags = article.article_tags?.map((at: any) => at.tag).filter(Boolean) || []
+
+  const isVideo = (article as any)?.article_type === 'video' && !!(article as any)?.youtube_link
+  const toEmbedUrl = (url: string) => {
+    try {
+      const short = url.match(/^https?:\/\/youtu\.be\/([\w-]{6,})/i)
+      if (short) return `https://www.youtube.com/embed/${short[1]}`
+      const u = new URL(url)
+      const v = u.searchParams.get("v")
+      if (v) return `https://www.youtube.com/embed/${v}`
+      return url.replace("watch?v=", "embed/")
+    } catch {
+      return url.replace("watch?v=", "embed/")
+    }
+  }
 
   // Generate JSON-LD structured data
   const jsonLd = {
@@ -183,10 +199,37 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   {article.views_count || 0} views
                 </span>
               </div>
+
+              {isVideo && (
+                <div className="mt-4 flex items-center gap-3">
+                  <a href="#player" className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700">Watch here</a>
+                  {(article as any)?.youtube_link && (
+                    <a
+                      href={String((article as any).youtube_link)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-4 py-2 rounded-lg border border-gray-300 dark:border-slate-700 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800"
+                    >
+                      Watch on YouTube
+                    </a>
+                  )}
+                </div>
+              )}
             </header>
 
-            {/* Featured Image */}
-            {article.featured_image && (
+            {/* Video or Featured Image */}
+            {isVideo ? (
+              <div id="player" className="mb-8 aspect-video rounded-lg overflow-hidden bg-black">
+                <iframe
+                  className="w-full h-full"
+                  src={toEmbedUrl(String((article as any).youtube_link))}
+                  title={article.title}
+                  frameBorder={0}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            ) : article.featured_image && (
               <div className="mb-8 aspect-video relative rounded-lg overflow-hidden">
                 <Image
                   src={article.featured_image}
@@ -224,12 +267,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             )}
 
             {/* Article Content */}
-            <Prose className="mb-12">
-              <div
-                className="prose-content"
-                dangerouslySetInnerHTML={{ __html: String(article.content || "") }}
-              />
-            </Prose>
+            {article.content && (
+              <Prose className="mb-12">
+                <div
+                  className="prose-content"
+                  dangerouslySetInnerHTML={{ __html: String(article.content || "") }}
+                />
+              </Prose>
+            )}
 
             {/* Tags */}
             {tags.length > 0 && (

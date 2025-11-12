@@ -357,3 +357,18 @@ export async function getMostPopular(limit = 6, days = 7) {
 }
 
 
+export async function getLatestVideos(limit = 6) {
+  const { data, error } = await sb
+    .from('articles')
+    .select('id, slug, title, excerpt, featured_image, youtube_link, article_type, published_at')
+    .eq('status', 'published')
+    .eq('article_type', 'video')
+    .not('published_at', 'is', null)
+    .lte('published_at', new Date().toISOString())
+    .order('published_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return data ?? []
+}
+
