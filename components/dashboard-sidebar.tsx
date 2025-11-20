@@ -53,6 +53,7 @@ const roleLinks: Record<string, NavLink[]> = {
     { name: "Categories", icon: FolderTree, path: "/dashboard/superadmin/categories" },
     { name: "Tags", icon: Tag, path: "/dashboard/superadmin/tags" },
     { name: "Analytics", icon: BarChart3, path: "/dashboard/superadmin/analytics" },
+    { name: "Visitors", icon: Activity, path: "/dashboard/superadmin/visitors" },
     { name: "Reports", icon: FileBarChart, path: "/dashboard/superadmin/reports" },
     { name: "System Logs", icon: ScrollText, path: "/dashboard/superadmin/logs" },
     { name: "Storage Management", icon: HardDrive, path: "/dashboard/superadmin/storage" },
