@@ -9,9 +9,10 @@ type Point = { date: string; views: number }
 type Props = {
   articleId?: string | null
   defaultRange?: "7d" | "30d" | "90d"
+  scope?: "admin" | "reporter"
 }
 
-export default function ViewsMiniChart({ articleId = null, defaultRange = "30d" }: Props) {
+export default function ViewsMiniChart({ articleId = null, defaultRange = "30d", scope = "admin" }: Props) {
   const [range, setRange] = useState<"7d"|"30d"|"90d">(defaultRange)
   const [points, setPoints] = useState<Point[]>([])
   const [loading, setLoading] = useState(false)
@@ -22,7 +23,8 @@ export default function ViewsMiniChart({ articleId = null, defaultRange = "30d" 
       try {
         const params = new URLSearchParams({ range })
         if (articleId) params.set("articleId", articleId)
-        const res = await fetch(`/api/admin/analytics/views-daily?${params.toString()}`)
+        const basePath = scope === "reporter" ? "/api/reporter/analytics/views-daily" : "/api/admin/analytics/views-daily"
+        const res = await fetch(`${basePath}?${params.toString()}`)
         const data = await res.json()
         setPoints(data.points || [])
       } finally {

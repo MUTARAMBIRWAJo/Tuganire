@@ -1,14 +1,16 @@
 import { SiteFooter } from "@/components/site-footer"
 import { SiteHeader } from "@/components/site-header"
 import type { Metadata } from "next"
-import BreakingNewsMarquee from "@/components/BreakingNewsMarquee"
 import AdvancedHero from "@/components/AdvancedHero"
+import BreakingNewsBar from "@/components/BreakingNewsBar"
 import TrendingRail from "@/components/TrendingRail"
 import CategoryRows from "@/components/CategoryRows"
-import { getBreaking, getFeaturedHero, getTrending, getLatestByCategoryRows, getEditorsPicks, getMostPopular, getPhotoGallery } from "@/lib/homeQueries"
+import { getBreaking, getFeaturedHero, getTrending, getLatestByCategoryRows, getEditorsPicks, getMostPopular, getMostLiked, getMostCommented, getPhotoGallery } from "@/lib/homeQueries"
 import HomeLatestGrid from "@/components/HomeLatestGrid"
 import EditorsPicksSection from "@/components/EditorsPicksSection"
 import MostPopularSection from "@/components/MostPopularSection"
+import MostLikedSection from "@/components/MostLikedSection"
+import MostCommentedSection from "@/components/MostCommentedSection"
 import NewsletterSignup from "@/components/NewsletterSignup"
 import PhotoGallery from "@/components/PhotoGallery"
 import WeatherWidget from "@/components/WeatherWidget"
@@ -41,34 +43,26 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const [breaking, hero, trending, rows, editorsPicks, mostPopular, photoGallery] = await Promise.all([
-    getBreaking(12),
+  const [breaking, hero, trending, rows, editorsPicks, mostPopular, mostLiked, mostCommented, photoGallery] = await Promise.all([
+    getBreaking(10),
     getFeaturedHero(),
     getTrending(12),
     getLatestByCategoryRows(),
     getEditorsPicks(6),
     getMostPopular(6, 7), // Last 7 days
+    getMostLiked(6),
+    getMostCommented(6, 30),
     getPhotoGallery(8)
   ])
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950">
-      <BreakingNewsMarquee
-        sticky
-        top={0}
-        labelSingle="Breaking News"
-        labelAll="Headlines"
-        tickerIntervalMs={4000}
-        marqueeSpeedMs={150000}
-        className="mb-2"
+      <BreakingNewsBar
         items={(breaking as any[]).map((b: any) => ({
           slug: b.slug,
           title: b.title,
-          category_slug: b.category_slug,
-          category_name: b.category_name,
         }))}
       />
-
       {/* Site Header */}
       <SiteHeader />
 
@@ -82,6 +76,8 @@ export default async function HomePage() {
             <EditorsPicksSection items={editorsPicks as any} />
             <CategoryRows rows={rows as any} />
             <MostPopularSection items={mostPopular as any} period="week" />
+            <MostLikedSection items={mostLiked as any} />
+            <MostCommentedSection items={mostCommented as any} />
             <PhotoGallery items={photoGallery as any} />
             <HomeLatestGrid title="Latest" />
           </div>

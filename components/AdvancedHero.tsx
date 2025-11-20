@@ -29,28 +29,26 @@ export default function AdvancedHero({ item }: AdvancedHeroProps) {
   }
 
   return (
-    <section className="mx-auto max-w-7xl px-4">
+    <section className="mx-auto max-w-7xl px-4 mt-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-200 dark:border-slate-700">
         {/* Featured Image - Left Side */}
-        <div className="md:col-span-2 relative h-64 md:h-80 overflow-hidden bg-slate-200 dark:bg-slate-700">
-          {item.featured_image ? (
-            <Image
-              src={item.featured_image}
-              alt={item.title}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-              priority
-              sizes="(max-width: 768px) 100vw, 66vw"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="text-slate-400">No Image</div>
-            </div>
-          )}
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
-          
-          {/* Category Badge */}
+        <div className="md:col-span-2 flex items-center justify-center py-4">
+          <div className="mx-auto flex justify-center items-center w-full max-w-2xl p-3 bg-gray-50 rounded-xl">
+            {item.featured_image ? (
+              <Image
+                src={item.featured_image}
+                alt={item.title}
+                width={1200}
+                height={800}
+                loading="lazy"
+                className="w-full h-auto object-contain rounded-xl"
+                sizes="(max-width: 768px) 100vw, 66vw"
+              />
+            ) : (
+              <div className="w-full h-[200px] flex items-center justify-center text-slate-400">No Image</div>
+            )}
+          </div>
+          {/* Category Badge (moved outside absolute overlay since image is no longer positioned) */}
           {item.categories?.name && (
             <Link
               href={`/category/${item.categories.slug}`}
@@ -62,10 +60,13 @@ export default function AdvancedHero({ item }: AdvancedHeroProps) {
         </div>
 
         {/* Content - Right Side */}
-        <div className="p-6 flex flex-col justify-between">
+        <div className="p-5 md:p-6 flex flex-col justify-between">
           <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400 mb-1">
+              Featured story
+            </p>
             {/* Title */}
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3 line-clamp-3 leading-tight">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2 line-clamp-3 leading-tight">
               <Link
                 href={`/articles/${item.slug}`}
                 className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors"

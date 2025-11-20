@@ -18,10 +18,19 @@ export default function FeaturedHero({
   return (
     <section className="mx-auto max-w-7xl px-4">
       <div className="grid items-stretch gap-6 md:grid-cols-2">
-        <div className="relative min-h-[320px] overflow-hidden rounded bg-neutral-200">
-          {item.featured_image ? (
-            <Image src={item.featured_image} alt={item.title} fill className="object-cover" priority />
-          ) : null}
+        <div className="flex items-center justify-center">
+          <div className="mx-auto flex justify-center items-center w-full max-w-3xl p-4 bg-gray-50 rounded-xl">
+            {item.featured_image ? (
+              <Image
+                src={item.featured_image}
+                alt={item.title}
+                width={1200}
+                height={800}
+                loading="lazy"
+                className="w-full h-auto object-contain rounded-xl"
+              />
+            ) : null}
+          </div>
         </div>
         <div className="flex flex-col justify-center">
           <div className="text-sm text-neutral-500">

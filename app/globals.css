@@ -61,7 +61,7 @@
     from { transform: translateX(0); }
     to { transform: translateX(-50%); }
   }
-  .animate-marquee { animation: marquee 30s linear infinite; }
+  .animate-marquee { animation: marquee 80s linear infinite; }
   @keyframes ticker-enter {
     0% { opacity: 0; transform: translateY(6px); }
     100% { opacity: 1; transform: translateY(0); }

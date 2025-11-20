@@ -10,8 +10,8 @@ export default function BreakingNewsMarquee({
   top = 0,
   labelSingle = "Breaking",
   labelAll = "All",
-  tickerIntervalMs = 4000,
-  marqueeSpeedMs = 25000,
+  tickerIntervalMs = 1000,
+  marqueeSpeedMs = 5000,
   className = "",
   pauseOnHover = true,
 }: {

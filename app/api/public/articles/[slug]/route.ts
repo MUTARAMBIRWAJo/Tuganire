@@ -19,6 +19,8 @@ function normalizeArticle(a: any) {
     featured_image: a.featured_image || a.image_url || null,
     published_at: a.published_at || a.created_at || null,
     views_count: a.views_count || 0,
+    likes_count: a.likes_count || 0,
+    comments_count: a.comments_count ?? 0,
     author: author && (author.display_name || author.full_name || author.name) ? author : null,
     category: category && (category.name || category.slug) ? category : (a.category ? { name: String(a.category), slug: String(a.category).toLowerCase().replace(/\s+/g, '-') } : null),
   }
@@ -30,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   // Priority 1: published relational
   const { data: primary } = await sb
     .from('articles')
-    .select(`*, author:app_users(display_name, avatar_url), category:categories(name, slug)`).eq('slug', slug)
+    .select(`*, likes_count, author:app_users(display_name, avatar_url), category:categories(name, slug)`).eq('slug', slug)
     .eq('status', 'published')
     .maybeSingle()
 
@@ -40,7 +42,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   if (!article) {
     const { data: basic } = await sb
       .from('articles')
-      .select('id, slug, title, excerpt, content, image_url, category, author_name, created_at, featured_image, published_at, views_count')
+      .select('id, slug, title, excerpt, content, image_url, category, author_name, created_at, featured_image, published_at, views_count, likes_count')
       .eq('slug', slug)
       .maybeSingle()
     if (basic) {
@@ -69,7 +71,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     if (catRow?.id) {
       const { data: rel } = await sb
         .from('articles')
-        .select('id, slug, title, excerpt, featured_image, published_at, views_count, author:app_users(display_name, avatar_url), category:categories(name, slug)')
+        .select('id, slug, title, excerpt, featured_image, published_at, views_count, likes_count, author:app_users(display_name, avatar_url), category:categories(name, slug)')
         .eq('category_id', catRow.id)
         .eq('status', 'published')
         .not('published_at', 'is', null)
@@ -84,7 +86,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
   if (!related.length) {
     const { data: recent } = await sb
       .from('articles')
-      .select('id, slug, title, excerpt, featured_image, published_at, views_count, author:app_users(display_name, avatar_url), category:categories(name, slug)')
+      .select('id, slug, title, excerpt, featured_image, published_at, views_count, likes_count, author:app_users(display_name, avatar_url), category:categories(name, slug)')
       .eq('status', 'published')
       .not('published_at', 'is', null)
       .lte('published_at', new Date().toISOString())
@@ -92,6 +94,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
       .order('published_at', { ascending: false })
       .limit(6)
     related = (recent || []).map(normalizeArticle)
+  }
+
+  // Attach comments_count to main article
+  try {
+    const { count: articleCommentsCount } = await sb
+      .from('comments')
+      .select('id', { count: 'exact', head: true })
+      .eq('article_slug', article.slug)
+      .eq('status', 'approved')
+    article = { ...article, comments_count: articleCommentsCount ?? 0 }
+  } catch {
+    article = { ...article, comments_count: 0 }
   }
 
   // Attach comments_count to related articles

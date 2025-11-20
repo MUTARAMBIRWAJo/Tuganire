@@ -46,14 +46,15 @@ export default function PhotoGallery({ items, title = "Photo Gallery" }: PhotoGa
           <Link
             key={item.id}
             href={`/articles/${item.slug}`}
-            className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-200 dark:bg-gray-800 hover:shadow-xl transition-all duration-300"
+            className="group relative w-full overflow-hidden rounded-xl bg-gray-100 aspect-[4/3] hover:shadow-xl transition-all duration-300"
           >
             {item.featured_image && (
               <Image
                 src={item.featured_image}
                 alt={item.title}
                 fill
-                className="object-cover group-hover:scale-110 transition-transform duration-500"
+                className="w-full h-full object-cover object-center rounded-lg"
+                loading="lazy"
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               />
             )}

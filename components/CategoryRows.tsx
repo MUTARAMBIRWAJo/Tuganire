@@ -51,6 +51,8 @@ export default function CategoryRows({ rows, categoryOrder }: { rows: Row[]; cat
                     <ArticleCard
                       key={a.id}
                       compact
+                      imageHeightClass="h-[180px]"
+                      imageAspectClass="aspect-[4/3]"
                       article={{
                         id: a.id as any,
                         slug: a.slug as any,

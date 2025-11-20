@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation"
+import { headers } from "next/headers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import Image from "next/image"
-import { Calendar, User, Eye, ArrowLeft, Share2, Facebook, Twitter, Linkedin } from "lucide-react"
+import { Calendar, User, Eye, ArrowLeft, MessageCircle } from "lucide-react"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { ArticleCard } from "@/components/article-card"
@@ -11,6 +12,8 @@ import type { Metadata } from "next"
 import Prose from "@/components/Prose"
 import CommentsSection from "@/components/comments-section"
 import RelatedArticles from "@/components/RelatedArticles"
+import { ShareButton } from "@/components/ShareButton"
+import { LikeButton } from "@/components/LikeButton"
 
 export const revalidate = 300 // Revalidate every 5 minutes
 
@@ -20,8 +23,12 @@ interface ArticlePageProps {
 
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
   const { slug } = await params
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const res = await fetch(`${base}/api/public/articles/${slug}`, { next: { revalidate } })
+  const hdrs = await headers()
+  const host = hdrs.get("host") || "localhost:3000"
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
+  const baseUrl = `${protocol}://${host}`
+
+  const res = await fetch(new URL(`/api/public/articles/${slug}`, baseUrl), { next: { revalidate } })
   if (!res.ok) {
     return {
       title: "Article Not Found",
@@ -56,14 +63,18 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
-  const res = await fetch(`${base}/api/public/articles/${slug}`, { next: { revalidate } })
+  const hdrs = await headers()
+  const host = hdrs.get("host") || "localhost:3000"
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
+  const baseUrl = `${protocol}://${host}`
+
+  const res = await fetch(new URL(`/api/public/articles/${slug}`, baseUrl), { next: { revalidate } })
   if (res.status === 404) return notFound()
   if (!res.ok) return notFound()
   const { article, media: mediaItems, related: finalRelated } = await res.json()
 
   // Increment view count (non-blocking via API route)
-  fetch(`${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/views/${slug}`, {
+  fetch(new URL(`/api/views/${slug}`, baseUrl), {
     method: "POST",
   }).catch(() => {
     // Silently fail if view counter doesn't work
@@ -161,7 +172,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   {category.name}
                 </Link>
               )}
-              <h1 className="text-4xl md:text-5xl font-bold mb-4 text-balance text-gray-900 dark:text-white">
+              <h1 className="text-3xl md:text-4xl font-bold mb-4 text-balance text-gray-900 dark:text-white">
                 {article.title}
               </h1>
               {article.excerpt && (
@@ -198,11 +209,23 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   <Eye className="h-4 w-4" />
                   {article.views_count || 0} views
                 </span>
+                <span className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  {(article as any).comments_count || 0} comments
+                </span>
+                <span className="flex items-center gap-2">
+                  <LikeButton slug={slug} initialCount={(article as any).likes_count || 0} />
+                </span>
               </div>
 
               {isVideo && (
                 <div className="mt-4 flex items-center gap-3">
-                  <a href="#player" className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700">Watch here</a>
+                  <a
+                    href="#player"
+                    className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
+                  >
+                    Watch here
+                  </a>
                   {(article as any)?.youtube_link && (
                     <a
                       href={String((article as any).youtube_link)}
@@ -230,13 +253,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 />
               </div>
             ) : article.featured_image && (
-              <div className="mb-8 aspect-video relative rounded-lg overflow-hidden">
+              <div className="mb-8 mx-auto flex justify-center items-center w-full max-w-3xl p-4 bg-gray-50 rounded-xl">
                 <Image
                   src={article.featured_image}
                   alt={article.title}
-                  fill
-                  priority
-                  className="object-cover"
+                  width={1200}
+                  height={800}
+                  loading="lazy"
+                  className="w-full h-auto object-contain rounded-xl"
                   sizes="(max-width: 768px) 100vw, 896px"
                 />
               </div>
@@ -248,9 +272,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Gallery</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {gallery.map((m) => (
-                    <div key={m.url} className="relative aspect-[4/3] rounded-md overflow-hidden">
+                    <div key={m.url} className="relative overflow-hidden rounded-xl bg-gray-100 w-full aspect-[4/3] h-[180px] flex items-center justify-center">
                       {m.type === "image" && (
-                        <Image src={m.url} alt={article.title} fill className="object-cover" sizes="(max-width: 768px) 50vw, 30vw" />
+                        <Image
+                          src={m.url}
+                          alt={article.title}
+                          fill
+                          loading="lazy"
+                          className="object-cover object-center w-full h-full rounded-lg"
+                          sizes="(max-width: 768px) 50vw, 30vw"
+                        />
                       )}
                       {m.type === "video" && (
                         <video src={m.url} controls className="h-full w-full object-cover" />
@@ -293,42 +324,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             )}
 
             {/* Share Buttons */}
-            <div className="border-t border-b border-gray-200 dark:border-slate-800 py-6 mb-12">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Share this article</span>
-                <div className="flex items-center gap-3">
-                  <a
-                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    aria-label="Share on Facebook"
-                  >
-                    <Facebook className="h-4 w-4" />
-                    <span className="text-sm">Facebook</span>
-                  </a>
-                  <a
-                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-                    aria-label="Share on Twitter"
-                  >
-                    <Twitter className="h-4 w-4" />
-                    <span className="text-sm">Twitter</span>
-                  </a>
-                  <a
-                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors"
-                    aria-label="Share on LinkedIn"
-                  >
-                    <Linkedin className="h-4 w-4" />
-                    <span className="text-sm">LinkedIn</span>
-                  </a>
-                </div>
-              </div>
+            <div className="border-t border-b border-gray-200 dark:border-slate-800 py-6 mb-12 flex items-center justify-between flex-wrap gap-4">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Share this article</span>
+              <ShareButton url={shareUrl} title={shareText} size="md" />
             </div>
 
             {/* Author Bio */}

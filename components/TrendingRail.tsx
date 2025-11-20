@@ -19,6 +19,8 @@ export default function TrendingRail({ items }: { items: Array<{ id: string; slu
           <div key={a.id} className="min-w-[280px] max-w-[280px] flex-shrink-0">
             <ArticleCard
               compact
+              imageHeightClass="h-[160px]"
+              imageAspectClass="aspect-video"
               article={{
                 id: a.id as any,
                 slug: a.slug,

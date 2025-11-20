@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { BarChart3, CheckCircle, Clock, FileText } from "lucide-react"
+import ViewsMiniChart from "@/components/views-mini-chart"
+import ReporterArticleMetricsCharts from "@/components/ReporterArticleMetricsCharts"
 
 export default async function ReporterStatsPage() {
   const user = await getCurrentUser()
@@ -35,6 +37,39 @@ export default async function ReporterStatsPage() {
     published: publishedRes.count || 0,
     drafts: draftRes.count || 0,
     pending: pendingRes.count || 0,
+  }
+
+  // Per-article metrics for this reporter
+  const { data: articlesForMetrics } = await supabase
+    .from("articles")
+    .select("id, slug, title, views_count, likes_count")
+    .eq("author_id", user.id)
+    .eq("status", "published")
+    .limit(50)
+
+  const metricsItems: { slug: string; title: string; views: number; likes: number; comments: number }[] = []
+
+  if (articlesForMetrics && articlesForMetrics.length > 0) {
+    for (const a of articlesForMetrics as any[]) {
+      let comments = 0
+      try {
+        const { count } = await supabase
+          .from("comments")
+          .select("id", { count: "exact", head: true })
+          .eq("article_slug", a.slug)
+          .eq("status", "approved")
+        comments = count || 0
+      } catch {
+        comments = 0
+      }
+      metricsItems.push({
+        slug: a.slug,
+        title: a.title,
+        views: Number(a.views_count) || 0,
+        likes: Number(a.likes_count) || 0,
+        comments,
+      })
+    }
   }
 
   return (
@@ -105,6 +140,19 @@ export default async function ReporterStatsPage() {
             </ul>
           </CardContent>
         </Card>
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Views (last 30 days)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ViewsMiniChart defaultRange="30d" scope="reporter" />
+            </CardContent>
+          </Card>
+        </div>
+
+        <ReporterArticleMetricsCharts items={metricsItems} />
       </main>
     </div>
   )

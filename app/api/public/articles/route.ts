@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   let query = sb
     .from('articles')
     .select(`
-      id, slug, title, excerpt, featured_image, published_at, views_count,
+      id, slug, title, excerpt, featured_image, published_at, views_count, likes_count,
       category:category_id ( id, name, slug ),
       author:author_id ( id, display_name, avatar_url )
     `, { count: 'exact' })
@@ -71,6 +71,9 @@ export async function GET(request: Request) {
     case 'views_desc':
       query = query.order('views_count', { ascending: false, nullsFirst: false }).order('published_at', { ascending: false });
       break;
+    case 'likes_desc':
+      query = query.order('likes_count', { ascending: false, nullsFirst: false }).order('published_at', { ascending: false });
+      break;
     case 'published_at_asc':
       query = query.order('published_at', { ascending: true });
       break;
@@ -86,6 +89,7 @@ export async function GET(request: Request) {
 
   const baseItems = (data || []).map((a: any) => ({
     ...a,
+    likes_count: a.likes_count || 0,
     author: Array.isArray(a.author) ? a.author[0] : a.author,
     category: Array.isArray(a.category) ? a.category[0] : a.category,
   }));
@@ -106,7 +110,25 @@ export async function GET(request: Request) {
     })
   );
 
-  return NextResponse.json({ items, total: count ?? 0 }, { status: 200 });
+  let finalItems = items;
+  if (sort === 'comments_desc') {
+    finalItems = [...items].sort((a: any, b: any) => {
+      const ca = Number(a.comments_count) || 0;
+      const cb = Number(b.comments_count) || 0;
+      if (cb !== ca) return cb - ca;
+      const va = Number(a.views_count) || 0;
+      const vb = Number(b.views_count) || 0;
+      if (vb !== va) return vb - va;
+      const la = Number(a.likes_count) || 0;
+      const lb = Number(b.likes_count) || 0;
+      if (lb !== la) return lb - la;
+      const da = a.published_at ? new Date(a.published_at).getTime() : 0;
+      const db = b.published_at ? new Date(b.published_at).getTime() : 0;
+      return db - da;
+    });
+  }
+
+  return NextResponse.json({ items: finalItems, total: count ?? 0 }, { status: 200 });
 }
 
 

@@ -77,12 +77,13 @@ export default function HomeLatestGrid({ title = "Latest News" }: { title?: stri
                 className="group flex gap-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all duration-200"
               >
                 {img && (
-                  <div className="relative w-32 h-24 flex-shrink-0 rounded overflow-hidden bg-slate-200 dark:bg-slate-800">
+                  <div className="relative flex-shrink-0 w-32 overflow-hidden rounded-xl bg-gray-100 aspect-[4/3]">
                     <Image
                       src={img}
                       alt={article.title}
                       fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover object-center rounded-lg transition-transform duration-300"
+                      loading="lazy"
                       sizes="128px"
                     />
                   </div>

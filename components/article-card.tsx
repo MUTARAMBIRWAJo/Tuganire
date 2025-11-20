@@ -1,6 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
-import { Calendar, Eye, User, MessageCircle } from "lucide-react"
+import { Calendar, Eye, User, MessageCircle, Heart } from "lucide-react"
+import { ShareButton } from "@/components/ShareButton"
 import type { Article } from "@/lib/types"
 
 function badgeClassesForCategory(input?: { name?: string; slug?: string } | null) {
@@ -17,26 +18,36 @@ function badgeClassesForCategory(input?: { name?: string; slug?: string } | null
 interface ArticleCardProps {
   article: Article
   compact?: boolean
+  imageHeightClass?: string
+  imageAspectClass?: string
 }
 
-export function ArticleCard({ article, compact = false }: ArticleCardProps) {
+export function ArticleCard({ article, compact = false, imageHeightClass, imageAspectClass }: ArticleCardProps) {
   const category = article.category
   const author = article.author
   const authorName = (author as any)?.display_name ?? (author as any)?.full_name ?? (author as any)?.name
+  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/articles/${article.slug}`
 
   if (compact) {
     return (
       <Link
         href={`/articles/${article.slug}`}
-        className="group flex flex-col bg-white dark:bg-slate-800 rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 motion-reduce:transition-none motion-reduce:transform-none motion-safe:hover-raise border border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-brand-500/10 hover:border-brand-200 dark:hover:border-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20"
+        className="group flex flex-col bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 motion-reduce:transition-none motion-reduce:transform-none motion-safe:hover-raise border border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-brand-500/10 hover:border-brand-200 dark:hover:border-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/20"
       >
         {article.featured_image && (
-          <div className="relative aspect-video overflow-hidden">
+          <div
+            className={
+              "relative w-full overflow-hidden rounded-xl " +
+              (imageAspectClass || "aspect-[4/3]") +
+              (imageHeightClass ? ` ${imageHeightClass}` : "")
+            }
+          >
             <Image
               src={article.featured_image}
               alt={article.title}
               fill
-              className="object-cover group-hover:scale-110 transition-transform duration-500"
+              className="w-full h-full object-cover object-center rounded-lg"
+              loading="lazy"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 20vw"
             />
           </div>
@@ -79,11 +90,18 @@ export function ArticleCard({ article, compact = false }: ArticleCardProps) {
                 <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                 {Number.isFinite(Number((article as any).comments_count ?? (article as any).comment_count)) ? ((article as any).comments_count ?? (article as any).comment_count) : 0}
               </span>
+              <span className="flex items-center gap-1 tabular-nums">
+                <Heart className="h-3 w-3 sm:h-4 sm:w-4" />
+                {Number.isFinite(Number((article as any).likes_count)) ? (article as any).likes_count : 0}
+              </span>
             </div>
-            <span className="flex items-center gap-1 whitespace-nowrap">
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-              {article.published_at ? new Date(article.published_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 whitespace-nowrap">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                {article.published_at ? new Date(article.published_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
+              </span>
+              <ShareButton url={shareUrl} title={article.title} size="sm" />
+            </div>
           </div>
         </div>
       </Link>
@@ -91,16 +109,16 @@ export function ArticleCard({ article, compact = false }: ArticleCardProps) {
   }
 
   return (
-    <article className="group bg-white dark:bg-slate-800 rounded-lg overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 motion-reduce:transition-none motion-reduce:transform-none motion-safe:hover-raise border border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-brand-500/10 hover:border-brand-200 dark:hover:border-brand-700 focus-visible:outline-none">
+    <article className="group bg-white dark:bg-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 motion-reduce:transition-none motion-reduce:transform-none motion-safe:hover-raise border border-slate-200 dark:border-slate-700 hover:ring-2 hover:ring-brand-500/10 hover:border-brand-200 dark:hover:border-brand-700 focus-visible:outline-none">
       <Link href={`/articles/${article.slug}`}>
         {article.featured_image && (
-          <div className="relative aspect-video overflow-hidden">
+          <div className="relative w-full overflow-hidden rounded-xl aspect-[4/3] md:aspect-video">
             <Image
               src={article.featured_image}
               alt={article.title}
               fill
-              priority={false}
-              className="object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
+              className="w-full h-full object-cover object-center rounded-lg"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           </div>
@@ -154,6 +172,11 @@ export function ArticleCard({ article, compact = false }: ArticleCardProps) {
                 <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                 {Number.isFinite(Number((article as any).comments_count ?? (article as any).comment_count)) ? ((article as any).comments_count ?? (article as any).comment_count) : 0}
               </span>
+              <span className="flex items-center gap-1 tabular-nums font-medium">
+                <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
+                {Number.isFinite(Number((article as any).likes_count)) ? (article as any).likes_count : 0}
+              </span>
+              <ShareButton url={shareUrl} title={article.title} size="sm" />
             </div>
           </div>
         </div>

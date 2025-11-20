@@ -356,6 +356,118 @@ export async function getMostPopular(limit = 6, days = 7) {
   return withCounts ?? [];
 }
 
+export async function getMostLiked(limit = 6) {
+  const { data, error } = await sb
+    .from('articles')
+    .select(`
+      id, slug, title, excerpt, featured_image, published_at, views_count, likes_count,
+      category:category_id ( id, name, slug ),
+      author:author_id ( id, display_name, avatar_url )
+    `)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .lte('published_at', new Date().toISOString())
+    .order('likes_count', { ascending: false, nullsFirst: false })
+    .order('published_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error
+
+  const base = (data || []).map((a: any) => ({
+    ...a,
+    author: Array.isArray(a.author) ? a.author[0] : a.author,
+    category: Array.isArray(a.category) ? a.category[0] : a.category,
+  }))
+
+  const withCounts = await Promise.all(
+    (base || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 }
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved')
+        return {
+          ...a,
+          comments_count: count ?? 0,
+        }
+      } catch {
+        return {
+          ...a,
+          comments_count: 0,
+        }
+      }
+    })
+  )
+
+  return withCounts ?? []
+}
+
+export async function getMostCommented(limit = 6, days = 30) {
+  const dateThreshold = new Date()
+  dateThreshold.setDate(dateThreshold.getDate() - days)
+
+  const { data, error } = await sb
+    .from('articles')
+    .select(`
+      id, slug, title, excerpt, featured_image, published_at, views_count, likes_count,
+      category:category_id ( id, name, slug ),
+      author:author_id ( id, display_name, avatar_url )
+    `)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .lte('published_at', new Date().toISOString())
+    .gte('published_at', dateThreshold.toISOString())
+
+  if (error) throw error
+
+  const base = (data || []).map((a: any) => ({
+    ...a,
+    author: Array.isArray(a.author) ? a.author[0] : a.author,
+    category: Array.isArray(a.category) ? a.category[0] : a.category,
+  }))
+
+  const withCounts = await Promise.all(
+    (base || []).map(async (a: any) => {
+      if (!a?.slug) return { ...a, comments_count: 0 }
+      try {
+        const { count } = await sb
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('article_slug', a.slug)
+          .eq('status', 'approved')
+        return {
+          ...a,
+          comments_count: count ?? 0,
+        }
+      } catch {
+        return {
+          ...a,
+          comments_count: 0,
+        }
+      }
+    })
+  )
+
+  // Sort by comments_count desc, then views_count desc, then likes_count desc, then date
+  const sorted = (withCounts || []).sort((a: any, b: any) => {
+    const ca = Number(a.comments_count) || 0
+    const cb = Number(b.comments_count) || 0
+    if (cb !== ca) return cb - ca
+    const va = Number(a.views_count) || 0
+    const vb = Number(b.views_count) || 0
+    if (vb !== va) return vb - va
+    const la = Number(a.likes_count) || 0
+    const lb = Number(b.likes_count) || 0
+    if (lb !== la) return lb - la
+    const da = a.published_at ? new Date(a.published_at).getTime() : 0
+    const db = b.published_at ? new Date(b.published_at).getTime() : 0
+    return db - da
+  })
+
+  return sorted.slice(0, limit)
+}
 
 export async function getLatestVideos(limit = 6) {
   const { data, error } = await sb
