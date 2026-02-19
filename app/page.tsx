@@ -1,0 +1,157 @@
+import { SiteFooter } from "@/components/site-footer"
+import { SiteHeader } from "@/components/site-header"
+import type { Metadata } from "next"
+import BreakingNewsBar from "@/components/BreakingNewsBar"
+import HeroSection from "@/components/editorial/HeroSection"
+import FeaturedSideList from "@/components/editorial/FeaturedSideList"
+import SectionBlock from "@/components/editorial/SectionBlock"
+import TrendingRail from "@/components/TrendingRail"
+import { getBreaking, getFeaturedHero, getTrending, getLatestByCategoryRows, getEditorsPicks, getMostPopular, getMostLiked, getMostCommented, getPhotoGallery } from "@/lib/homeQueries"
+import EditorsPicksSection from "@/components/EditorsPicksSection"
+import MostPopularSection from "@/components/MostPopularSection"
+import MostLikedSection from "@/components/MostLikedSection"
+import MostCommentedSection from "@/components/MostCommentedSection"
+import NewsletterSignup from "@/components/NewsletterSignup"
+import PhotoGallery from "@/components/PhotoGallery"
+import WeatherWidget from "@/components/WeatherWidget"
+import StockTicker from "@/components/StockTicker"
+import AdvertisementMarquee from "@/components/AdvertisementMarquee"
+import Script from "next/script"
+
+export const revalidate = 120 // Revalidate every 2 minutes
+
+export const metadata: Metadata = {
+  title: "Tuganire News - Latest Breaking News, Stories & Analysis",
+  description: "Stay informed with the latest breaking news, in-depth analysis, and exclusive stories from Tuganire News. Your trusted source for world news, politics, technology, sports, and culture.",
+  keywords: ["news", "breaking news", "latest news", "world news", "politics", "technology", "sports", "culture"],
+  openGraph: {
+    title: "Tuganire News - Latest Breaking News & Stories",
+    description: "Stay informed with the latest breaking news, in-depth analysis, and exclusive stories.",
+    type: "website",
+    locale: "en_US",
+    siteName: "Tuganire News",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tuganire News - Latest Breaking News",
+    description: "Stay informed with the latest breaking news and stories.",
+  },
+  alternates: {
+    types: {
+      "application/rss+xml": "/rss.xml",
+    },
+  },
+}
+
+export default async function HomePage() {
+  const [breaking, hero, trending, rows, editorsPicks, mostPopular, mostLiked, mostCommented, photoGallery] = await Promise.all([
+    getBreaking(10),
+    getFeaturedHero(),
+    getTrending(12),
+    getLatestByCategoryRows(),
+    getEditorsPicks(6),
+    getMostPopular(6, 7), // Last 7 days
+    getMostLiked(6),
+    getMostCommented(6, 30),
+    getPhotoGallery(8)
+  ])
+
+  // Get side stories for hero section (next 3 trending articles)
+  const sideStories = (trending as any[]).slice(0, 3)
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-slate-950">
+      <BreakingNewsBar
+        items={(breaking as any[]).map((b: any) => ({
+          slug: b.slug,
+          title: b.title,
+        }))}
+      />
+      <SiteHeader />
+
+      <main className="space-y-8">
+        {/* Hero Section with Side Stories */}
+        <section className="relative">
+          <HeroSection item={hero as any} sideStories={sideStories as any} />
+        </section>
+
+        {/* Trending Rail */}
+        <section className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <TrendingRail items={trending as any} />
+        </section>
+
+        {/* Category Sections using new SectionBlock */}
+        {rows && (rows as any[]).length > 0 && (
+          <section className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Latest by Category
+              </h2>
+            </div>
+            <div className="space-y-8">
+              {(rows as any[]).map((categoryRow: any) => (
+                <SectionBlock
+                  key={categoryRow.category_slug}
+                  title={categoryRow.category_name}
+                  categorySlug={categoryRow.category_slug}
+                  articles={categoryRow.articles || []}
+                  showReadMore={true}
+                  maxArticles={4}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Sidebar Widgets Row */}
+        <section className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3 space-y-8">
+              <EditorsPicksSection items={editorsPicks as any} />
+              <MostPopularSection items={mostPopular as any} period="week" />
+              <MostLikedSection items={mostLiked as any} />
+              <MostCommentedSection items={mostCommented as any} />
+              <PhotoGallery items={photoGallery as any} />
+            </div>
+            
+            <div className="lg:col-span-1 space-y-6">
+              <div className="sticky top-6 space-y-6">
+                <WeatherWidget defaultLocation="Kigali" />
+                <StockTicker symbols={["AAPL", "GOOGL", "MSFT", "TSLA", "AMZN"]} />
+                <AdvertisementMarquee />
+                
+                {/* Google AdSense Vertical Ads */}
+                <div className="w-full">
+                  <Script
+                    async
+                    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1524579863977140"
+                    crossOrigin="anonymous"
+                    strategy="afterInteractive"
+                  />
+                  <ins
+                    className="adsbygoogle"
+                    style={{ display: "block" }}
+                    data-ad-client="ca-pub-1524579863977140"
+                    data-ad-slot="7009041993"
+                    data-ad-format="auto"
+                    data-full-width-responsive="true"
+                  />
+                  <Script id="adsbygoogle-init" strategy="afterInteractive">
+                    {`(adsbygoogle = window.adsbygoogle || []).push({});`}
+                  </Script>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        
+        {/* Newsletter Signup */}
+        <section className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <NewsletterSignup />
+        </section>
+      </main>
+
+      <SiteFooter />
+    </div>
+  )
+}
