@@ -14,7 +14,8 @@ import CommentsSection from "@/components/comments-section"
 import RelatedArticles from "@/components/RelatedArticles"
 import { ShareButton } from "@/components/ShareButton"
 import { LikeButton } from "@/components/LikeButton"
-import AdSenseFluid from "@/components/AdSenseFluid"
+import AdSenseInContent from "@/components/ads/AdSenseInContent"
+import AdSenseSidebar from "@/components/ads/AdSenseSidebar"
 
 export const revalidate = 300 // Revalidate every 5 minutes
 
@@ -302,7 +303,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             {article.content && (
               <>
                 {/* First Ad - After Featured Image */}
-                <AdSenseFluid adSlot="5121245254" className="mb-8" />
+                <AdSenseInContent adSlot="5121245254" position="top" />
                 
                 <Prose className="mb-12">
                   <div
@@ -312,7 +313,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 </Prose>
                 
                 {/* Second Ad - After Article Content */}
-                <AdSenseFluid adSlot="5121245254" className="mb-8" />
+                <AdSenseInContent adSlot="5121245255" position="bottom" />
               </>
             )}
 
@@ -366,6 +367,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 </CardContent>
               </Card>
             )}
+
+            {/* Sidebar Ad */}
+            <AdSenseSidebar adSlot="6789012345" className="mb-12" />
           </article>
 
           {/* Related Articles */}

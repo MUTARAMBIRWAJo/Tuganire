@@ -16,6 +16,10 @@ import PhotoGallery from "@/components/PhotoGallery"
 import WeatherWidget from "@/components/WeatherWidget"
 import StockTicker from "@/components/StockTicker"
 import AdvertisementMarquee from "@/components/AdvertisementMarquee"
+import AdSenseHero from "@/components/ads/AdSenseHero"
+import AdSenseSidebar from "@/components/ads/AdSenseSidebar"
+import AdSenseBanner from "@/components/ads/AdSenseBanner"
+import AdSenseInContent from "@/components/ads/AdSenseInContent"
 import Script from "next/script"
 
 export const revalidate = 120 // Revalidate every 2 minutes
@@ -75,6 +79,11 @@ export default async function HomePage() {
           <HeroSection item={hero as any} sideStories={sideStories as any} />
         </section>
 
+        {/* Hero Ad */}
+        <section className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AdSenseHero adSlot="1234567890" className="mb-8" />
+        </section>
+
         {/* Trending Rail */}
         <section className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
           <TrendingRail items={trending as any} />
@@ -87,6 +96,7 @@ export default async function HomePage() {
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
                 Latest by Category
               </h2>
+              <AdSenseBanner adSlot="2345678901" className="w-auto" fullWidth={false} />
             </div>
             <div className="space-y-8">
               {(rows as any[]).map((categoryRow: any) => (
@@ -121,25 +131,10 @@ export default async function HomePage() {
                 <AdvertisementMarquee />
                 
                 {/* Google AdSense Vertical Ads */}
-                <div className="w-full">
-                  <Script
-                    async
-                    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1524579863977140"
-                    crossOrigin="anonymous"
-                    strategy="afterInteractive"
-                  />
-                  <ins
-                    className="adsbygoogle"
-                    style={{ display: "block" }}
-                    data-ad-client="ca-pub-1524579863977140"
-                    data-ad-slot="7009041993"
-                    data-ad-format="auto"
-                    data-full-width-responsive="true"
-                  />
-                  <Script id="adsbygoogle-init" strategy="afterInteractive">
-                    {`(adsbygoogle = window.adsbygoogle || []).push({});`}
-                  </Script>
-                </div>
+                <AdSenseSidebar adSlot="3456789012" className="mb-6" />
+                
+                {/* Additional Banner Ad */}
+                <AdSenseBanner adSlot="4567890123" adFormat="vertical" className="mb-6" />
               </div>
             </div>
           </div>
